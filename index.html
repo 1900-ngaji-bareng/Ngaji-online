@@ -5,119 +5,141 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NgajiYuk - Tadarus 30 Juz</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Amiri&family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Amiri&family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         .arabic { font-family: 'Amiri', serif; }
-        .loading-spinner { border-top-color: #10b981; animation: spinner 1s linear infinite; }
-        @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .sticky-header { position: sticky; top: 0; z-index: 50; }
     </style>
 </head>
 <body class="bg-slate-50 font-['Inter']">
 
-    <nav class="bg-emerald-700 p-4 text-white shadow-md sticky top-0 z-50">
+    <nav class="bg-emerald-700 p-4 text-white shadow-lg sticky-header">
         <div class="container mx-auto flex justify-between items-center">
-            <h1 class="text-xl font-bold tracking-tight">📖 NGAJIYUK</h1>
-            <span class="text-xs bg-emerald-800 px-3 py-1 rounded-full">Program Khatam 30 Juz</span>
+            <h1 class="text-xl font-bold italic">📖 NGAJIYUK</h1>
+            <div id="status-api" class="text-[10px] bg-emerald-800 px-2 py-1 rounded">Database Online</div>
         </div>
     </nav>
 
-    <section class="container mx-auto p-6 mt-4">
-        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-            <h2 class="text-2xl font-bold text-slate-800 mb-2">Pilih Bagian Juz</h2>
-            <p class="text-slate-500 text-sm mb-6">Klik pada Juz yang tersedia untuk mendaftarkan nama Anda.</p>
-            
-            <div id="juz-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-3">
-                <div class="col-span-full py-10 text-center text-slate-400">Menghubungkan ke database...</div>
+    <section class="container mx-auto p-4 mt-4">
+        <div class="bg-white rounded-2xl shadow-sm p-6 border border-slate-200">
+            <h2 class="text-xl font-bold mb-4 text-slate-800">Pilih Jadwal Juz</h2>
+            <div id="juz-grid" class="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-10 gap-2">
+                <div class="col-span-full text-center py-4 text-slate-400 text-sm italic">Memuat data dari Google Sheets...</div>
             </div>
         </div>
     </section>
 
-    <section class="container mx-auto p-6">
-        <h2 class="text-2xl font-bold text-slate-800 mb-4">Daftar Surah</h2>
-        <div id="surah-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <section id="read-section" class="container mx-auto p-4 hidden">
+        <div id="quran-container" class="space-y-4">
             </div>
     </section>
 
     <script>
-        // !!! GANTI URL DI BAWAH INI DENGAN URL WEB APP KAMU !!!
+        // GANTI INI DENGAN URL DARI GOOGLE APPS SCRIPT
         const scriptURL = 'https://script.google.com/macros/s/AKfycbyRu-BoqClvzQuE9wALNkoLOi6K14wQTepNkdC9fcEMcY3CiixpKxS9OHqAmNYie_rJww/exec';
 
-        // 1. Fungsi Load Jadwal dari Google Sheets
+        // 1. Ambil Data dari Google Sheets
         async function loadJadwal() {
             try {
                 const response = await fetch(scriptURL);
                 const data = await response.json();
-                const container = document.getElementById('juz-grid');
-                container.innerHTML = '';
-
-                data.forEach(item => {
-                    const isTaken = item.nama !== "";
-                    const card = document.createElement('div');
-                    card.className = `p-3 rounded-xl border-2 transition-all duration-300 ${
-                        isTaken ? 'bg-slate-100 border-slate-200 opacity-75' : 'bg-emerald-50 border-emerald-100 hover:border-emerald-500 cursor-pointer shadow-sm'
-                    }`;
-                    
-                    card.innerHTML = `
-                        <div class="text-[10px] font-bold text-emerald-700 uppercase">Juz</div>
-                        <div class="text-xl font-black text-emerald-900">${item.juz}</div>
-                        <div class="text-[11px] mt-1 truncate font-medium ${isTaken ? 'text-slate-600' : 'text-emerald-400 italic'}">
-                            ${isTaken ? '👤 ' + item.nama : 'Tersedia'}
-                        </div>
-                    `;
-
-                    if (!isTaken) {
-                        card.onclick = () => pilihJuz(item.juz);
-                    }
-                    container.appendChild(card);
-                });
+                renderJuzGrid(data);
             } catch (e) {
-                console.error(e);
+                document.getElementById('juz-grid').innerHTML = "Gagal memuat database.";
             }
         }
 
-        // 2. Fungsi Kirim Nama ke Google Sheets
-        async function pilihJuz(nomor) {
-            const nama = prompt(`Masukkan nama Anda untuk mengambil Juz ${nomor}:`);
-            if (nama && nama.trim() !== "") {
-                const btn = event.currentTarget;
-                btn.innerHTML = "Memproses...";
-                
-                try {
-                    const response = await fetch(scriptURL, {
-                        method: 'POST',
-                        mode: 'no-cors', // Penting untuk Apps Script
-                        body: JSON.stringify({ "juz": nomor, "nama": nama })
-                    });
-                    
-                    alert(`Terima kasih ${nama}, Juz ${nomor} telah didaftarkan. Mohon tunggu 5 detik lalu refresh halaman.`);
-                    setTimeout(() => { location.reload(); }, 2000);
-                } catch (e) {
-                    alert("Terjadi kesalahan saat menyimpan.");
+        // 2. Tampilkan Kotak Juz
+        function renderJuzGrid(data) {
+            const container = document.getElementById('juz-grid');
+            container.innerHTML = '';
+            data.forEach(item => {
+                const isTaken = item.nama !== "";
+                const card = document.createElement('div');
+                card.className = `p-3 rounded-xl border-2 text-center transition-all cursor-pointer ${
+                    isTaken ? 'bg-slate-100 border-slate-200' : 'bg-emerald-50 border-emerald-200 hover:border-emerald-500 shadow-sm'
+                }`;
+                card.innerHTML = `
+                    <div class="text-[10px] font-bold text-emerald-700">JUZ</div>
+                    <div class="text-lg font-black">${item.juz}</div>
+                    <div class="text-[9px] truncate font-medium ${isTaken ? 'text-slate-500' : 'text-emerald-400'}">
+                        ${isTaken ? '👤 ' + item.nama : 'Tersedia'}
+                    </div>
+                `;
+                card.onclick = () => handleJuzClick(item.juz, isTaken);
+                container.appendChild(card);
+            });
+        }
+
+        // 3. Logika Klik Juz
+        async function handleJuzClick(nomor, isTaken) {
+            if (!isTaken) {
+                const nama = prompt(`Juz ${nomor} kosong. Masukkan nama Anda untuk mengambil:`);
+                if (nama) {
+                    await registerJuz(nomor, nama);
+                    return;
                 }
             }
+            showQuranText(nomor);
         }
 
-        // 3. Fungsi Load Daftar Surah
-        async function fetchSurah() {
-            const response = await fetch('https://equran.id/api/v2/surat');
-            const data = await response.json();
-            const container = document.getElementById('surah-list');
-            container.innerHTML = data.data.slice(0, 114).map(surah => `
-                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center">
-                    <div>
-                        <p class="text-xs font-bold text-emerald-600">${surah.nomor}. ${surah.namaLatin}</p>
-                        <p class="text-[10px] text-slate-400">${surah.arti}</p>
+        // 4. Daftar Nama ke Google Sheets
+        async function registerJuz(nomor, nama) {
+            try {
+                await fetch(scriptURL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    body: JSON.stringify({ "juz": nomor, "nama": nama })
+                });
+                alert("Berhasil didaftarkan! Halaman akan memuat ulang.");
+                location.reload();
+            } catch (e) { alert("Gagal mendaftar."); }
+        }
+
+        // 5. Tampilkan Teks Ayat & Fitur Cicil (LocalStorage)
+        async function showQuranText(nomor) {
+            const section = document.getElementById('read-section');
+            const container = document.getElementById('quran-container');
+            section.classList.remove('hidden');
+            container.innerHTML = `<div class="text-center py-10">Memuat teks Juz ${nomor}...</div>`;
+            container.scrollIntoView({ behavior: 'smooth' });
+
+            try {
+                const res = await fetch(`https://api.alquran.cloud/v1/juz/${nomor}/id.indonesian`);
+                const data = await res.json();
+                const lastAyat = localStorage.getItem(`last-read-juz-${nomor}`);
+
+                container.innerHTML = `
+                    <div class="bg-emerald-800 text-white p-4 rounded-xl flex justify-between items-center shadow-lg">
+                        <h3 class="font-bold">Membaca Juz ${nomor}</h3>
+                        ${lastAyat ? `<button onclick="document.getElementById('ayat-${lastAyat}').scrollIntoView({behavior:'smooth'})" class="bg-white text-emerald-800 text-[10px] px-3 py-1 rounded-full font-bold">Lanjut Baca</button>` : ''}
                     </div>
-                    <div class="arabic text-xl text-emerald-800">${surah.nama}</div>
-                </div>
-            `).join('');
+                `;
+
+                data.data.ayahs.forEach(ayat => {
+                    const ayatId = `${ayat.surah.number}-${ayat.numberInSurah}`;
+                    const div = document.createElement('div');
+                    div.id = `ayat-${ayatId}`;
+                    div.className = `bg-white p-6 rounded-xl border-b-2 transition-all ${lastAyat === ayatId ? 'border-emerald-500 bg-emerald-50' : 'border-slate-100'}`;
+                    div.onclick = () => {
+                        localStorage.setItem(`last-read-juz-${nomor}`, ayatId);
+                        alert("Tanda baca disimpan!");
+                        showQuranText(nomor);
+                    };
+
+                    div.innerHTML = `
+                        <div class="text-right">
+                            <p class="text-[10px] text-slate-400 text-left mb-2">${ayat.surah.englishName} : ${ayat.numberInSurah}</p>
+                            <p class="arabic text-3xl leading-[4.5rem] text-slate-800" dir="rtl">${ayat.text}</p>
+                            <p class="text-sm text-slate-500 mt-4 text-left italic">${ayat.text}</p>
+                        </div>
+                    `;
+                    container.appendChild(div);
+                });
+            } catch (e) { container.innerHTML = "Gagal memuat teks Al-Qur'an."; }
         }
 
-        // Jalankan semua
         loadJadwal();
-        fetchSurah();
     </script>
 </body>
 </html>
-
-
