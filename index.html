@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NgajiYuk - Tadarus & Khataman</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Amiri&family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         .arabic { font-family: 'Amiri', serif; }
@@ -47,7 +48,7 @@
     </section>
 
     <script>
-        const scriptURL = 'URL_APPS_SCRIPT_KAMU'; // Masukkan URL Apps Script kamu di sini
+        const scriptURL = 'https://script.google.com/macros/s/AKfycby52vz1IOIJLBlu4wD3DDtFvjbyFFWpXaUbE0D8kMzYIR0odo6FLLVSbLQu-4j4hUS_cQ/exec'; // Masukkan URL Apps Script kamu di sini
 
         // 1. Fungsi Switch Tab
         function switchTab(type) {
@@ -90,6 +91,24 @@
 
         // 3. Tampilkan Teks Al-Qur'an (Bisa per Juz atau per Surah)
         async function showQuranText(id, type) {
+                        const headerExtra = type === 'juz' ? `
+                    <button onclick="setoranSelesai(${id})" class="bg-yellow-400 text-emerald-900 text-[10px] px-4 py-2 rounded-full font-bold shadow-md hover:bg-yellow-300">
+                        Selesai Setoran ✅
+                    </button>
+                ` : '';
+            
+                container.innerHTML = `
+                    <div class="bg-emerald-800 text-white p-4 rounded-xl flex justify-between items-center sticky top-[130px] z-40 shadow-lg">
+                        <div>
+                            <h3 class="font-bold">Membaca ${type === 'juz' ? 'Juz ' + id : dataArab.data.englishName}</h3>
+                            <p class="text-[9px] text-emerald-200">Klik ayat untuk tandai progres</p>
+                        </div>
+                        <div class="flex gap-2">
+                            ${lastAyat ? `<button onclick="document.getElementById('ayat-${lastAyat}').scrollIntoView({behavior:'smooth'})" class="bg-white text-emerald-800 text-[10px] px-3 py-2 rounded-full font-bold">Lanjut</button>` : ''}
+                            ${headerExtra}
+                        </div>
+                    </div>
+                `;
             const section = document.getElementById('read-section');
             const container = document.getElementById('quran-container');
             section.classList.remove('hidden');
@@ -164,6 +183,38 @@
         }
 
         loadJadwal();
+
+        // FUNGSI BARU UNTUK SELEBRASI & UPDATE DATABASE
+async function setoranSelesai(nomor) {
+    const konfirmasi = confirm(`Alhamdulillah! Apakah Anda sudah menyelesaikan bacaan Juz ${nomor}?`);
+    if (konfirmasi) {
+        // Efek Kembang Api
+        confetti({
+            particleCount: 150,
+            spread: 70,
+            origin: { y: 0.6 },
+            colors: ['#10b981', '#facc15', '#ffffff']
+        });
+
+        // Ambil nama dari database lokal atau prompt
+        const nama = prompt("Konfirmasi nama Anda untuk laporan khataman:");
+        
+        if (nama) {
+            try {
+                await fetch(scriptURL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    body: JSON.stringify({ "juz": nomor, "nama": nama, "selesai": true })
+                });
+                alert("Barakallah! Setoran Anda telah tercatat.");
+                location.reload();
+            } catch (e) {
+                alert("Gagal mengirim laporan, tapi selamat atas khatamannya!");
+            }
+        }
+    }
+}
     </script>
 </body>
 </html>
+
