@@ -96,50 +96,67 @@
             } catch (e) { alert("Gagal mendaftar."); }
         }
 
-        // 5. Tampilkan Teks Ayat & Fitur Cicil (LocalStorage)
-        async function showQuranText(nomor) {
-            const section = document.getElementById('read-section');
-            const container = document.getElementById('quran-container');
-            section.classList.remove('hidden');
-            container.innerHTML = `<div class="text-center py-10">Memuat teks Juz ${nomor}...</div>`;
-            container.scrollIntoView({ behavior: 'smooth' });
-
-            try {
-                const res = await fetch(`https://api.alquran.cloud/v1/juz/${nomor}/id.indonesian`);
-                const data = await res.json();
-                const lastAyat = localStorage.getItem(`last-read-juz-${nomor}`);
-
-                container.innerHTML = `
-                    <div class="bg-emerald-800 text-white p-4 rounded-xl flex justify-between items-center shadow-lg">
-                        <h3 class="font-bold">Membaca Juz ${nomor}</h3>
-                        ${lastAyat ? `<button onclick="document.getElementById('ayat-${lastAyat}').scrollIntoView({behavior:'smooth'})" class="bg-white text-emerald-800 text-[10px] px-3 py-1 rounded-full font-bold">Lanjut Baca</button>` : ''}
-                    </div>
-                `;
-
-                data.data.ayahs.forEach(ayat => {
-                    const ayatId = `${ayat.surah.number}-${ayat.numberInSurah}`;
-                    const div = document.createElement('div');
-                    div.id = `ayat-${ayatId}`;
-                    div.className = `bg-white p-6 rounded-xl border-b-2 transition-all ${lastAyat === ayatId ? 'border-emerald-500 bg-emerald-50' : 'border-slate-100'}`;
-                    div.onclick = () => {
-                        localStorage.setItem(`last-read-juz-${nomor}`, ayatId);
-                        alert("Tanda baca disimpan!");
-                        showQuranText(nomor);
-                    };
-
-                    div.innerHTML = `
-                        <div class="text-right">
-                            <p class="text-[10px] text-slate-400 text-left mb-2">${ayat.surah.englishName} : ${ayat.numberInSurah}</p>
-                            <p class="arabic text-3xl leading-[4.5rem] text-slate-800" dir="rtl">${ayat.text}</p>
-                            <p class="text-sm text-slate-500 mt-4 text-left italic">${ayat.text}</p>
+       // 5. Tampilkan Teks Ayat Arab & Terjemahan (Fitur Cicil)
+            async function showQuranText(nomor) {
+                const section = document.getElementById('read-section');
+                const container = document.getElementById('quran-container');
+                section.classList.remove('hidden');
+                container.innerHTML = `<div class="text-center py-10">Menampilkan Teks Arab Juz ${nomor}...</div>`;
+                container.scrollIntoView({ behavior: 'smooth' });
+            
+                try {
+                    // Kita ambil 2 data: Arab (quran-uthmani) dan Indonesia (id.indonesian)
+                    const [resArab, resIndo] = await Promise.all([
+                        fetch(`https://api.alquran.cloud/v1/juz/${nomor}/quran-uthmani`),
+                        fetch(`https://api.alquran.cloud/v1/juz/${nomor}/id.indonesian`)
+                    ]);
+                    
+                    const dataArab = await resArab.json();
+                    const dataIndo = await resIndo.json();
+                    const lastAyat = localStorage.getItem(`last-read-juz-${nomor}`);
+            
+                    container.innerHTML = `
+                        <div class="bg-emerald-800 text-white p-4 rounded-xl flex justify-between items-center shadow-lg sticky top-[72px] z-40">
+                            <h3 class="font-bold">Membaca Juz ${nomor}</h3>
+                            ${lastAyat ? `<button onclick="document.getElementById('ayat-${lastAyat}').scrollIntoView({behavior:'smooth'})" class="bg-white text-emerald-800 text-[10px] px-3 py-1 rounded-full font-bold shadow-md">Lanjut Baca</button>` : ''}
                         </div>
                     `;
-                    container.appendChild(div);
-                });
-            } catch (e) { container.innerHTML = "Gagal memuat teks Al-Qur'an."; }
-        }
-
-        loadJadwal();
+            
+                    dataArab.data.ayahs.forEach((ayat, index) => {
+                        const terjemahan = dataIndo.data.ayahs[index].text;
+                        const ayatId = `${ayat.surah.number}-${ayat.numberInSurah}`;
+                        const isLastRead = lastAyat === ayatId;
+            
+                        const div = document.createElement('div');
+                        div.id = `ayat-${ayatId}`;
+                        div.className = `bg-white p-6 rounded-xl border-b-4 transition-all mb-4 ${isLastRead ? 'border-emerald-500 bg-emerald-50' : 'border-slate-100'}`;
+                        
+                        // Klik untuk simpan progres
+                        div.onclick = () => {
+                            localStorage.setItem(`last-read-juz-${nomor}`, ayatId);
+                            alert(`Ditandai: ${ayat.surah.englishName} ayat ${ayat.numberInSurah}`);
+                            showQuranText(nomor); // Refresh tampilan
+                        };
+            
+                        div.innerHTML = `
+                            <div class="text-right">
+                                <div class="flex justify-between items-center mb-6">
+                                    <span class="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-1 rounded font-bold">${ayat.surah.englishName} : ${ayat.numberInSurah}</span>
+                                    ${isLastRead ? '<span class="text-xs font-bold text-emerald-600">Terakhir Dibaca</span>' : '<span class="text-[10px] text-slate-300 italic">Klik ayat untuk tandai</span>'}
+                                </div>
+                                <p class="arabic text-4xl leading-[5rem] text-slate-900 mb-6 font-medium" dir="rtl">${ayat.text}</p>
+                                <hr class="mb-4 border-slate-50">
+                                <p class="text-sm text-slate-600 text-left leading-relaxed">${terjemahan}</p>
+                            </div>
+                        `;
+                        container.appendChild(div);
+                    });
+                } catch (e) { 
+                    container.innerHTML = `<div class="p-10 text-center text-red-500">Gagal memuat teks Arab. Periksa koneksi internet Anda.</div>`; 
+                }
+            }
+                    loadJadwal();
     </script>
 </body>
 </html>
+
