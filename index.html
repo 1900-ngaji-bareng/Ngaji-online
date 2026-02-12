@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NgajiYuk - Tadarus & Khataman</title>
+    <title>NgajiYuk - Tadarus 30 Juz</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Amiri&family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
@@ -18,7 +18,7 @@
     <nav class="bg-emerald-700 p-4 text-white shadow-lg sticky-header">
         <div class="container mx-auto flex justify-between items-center">
             <h1 class="text-xl font-bold italic">📖 NGAJIYUK</h1>
-            <div id="status-api" class="text-[10px] bg-emerald-800 px-2 py-1 rounded">Online</div>
+            <div class="text-[10px] bg-emerald-800 px-2 py-1 rounded">Online</div>
         </div>
     </nav>
 
@@ -31,16 +31,15 @@
 
     <section id="section-juz" class="container mx-auto p-4">
         <div class="bg-white rounded-2xl shadow-sm p-6 border border-slate-200">
-            <h2 class="text-xl font-bold mb-4 text-slate-800">Pilih Jadwal Juz</h2>
+            <h2 class="text-xl font-bold mb-4 text-slate-800 text-center sm:text-left">Pilih Jadwal Juz</h2>
             <div id="juz-grid" class="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-10 gap-2">
-                <div class="col-span-full text-center py-4 text-slate-400 italic">Memuat jadwal...</div>
+                <div class="col-span-full text-center py-4 text-slate-400 italic text-sm">Menghubungkan ke Sheets...</div>
             </div>
         </div>
     </section>
 
     <section id="section-surah" class="container mx-auto p-4 hidden">
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" id="surah-grid">
-            </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" id="surah-grid"></div>
     </section>
 
     <section id="read-section" class="container mx-auto p-4 hidden">
@@ -48,71 +47,60 @@
     </section>
 
     <script>
-        const scriptURL = 'https://script.google.com/macros/s/AKfycby52vz1IOIJLBlu4wD3DDtFvjbyFFWpXaUbE0D8kMzYIR0odo6FLLVSbLQu-4j4hUS_cQ/exec'; // Masukkan URL Apps Script kamu di sini
+        // MASUKKAN URL APPS SCRIPT KAMU DI SINI
+        const scriptURL = 'https://script.google.com/macros/s/AKfycby52vz1IOIJLBlu4wD3DDtFvjbyFFWpXaUbE0D8kMzYIR0odo6FLLVSbLQu-4j4hUS_cQ/exec';
 
-        // 1. Fungsi Switch Tab
         function switchTab(type) {
             document.getElementById('section-juz').classList.toggle('hidden', type !== 'juz');
             document.getElementById('section-surah').classList.toggle('hidden', type !== 'surah');
             document.getElementById('read-section').classList.add('hidden');
-            
             document.getElementById('tab-juz').className = `flex-1 py-4 text-center ${type === 'juz' ? 'tab-active' : 'text-slate-500'}`;
             document.getElementById('tab-surah').className = `flex-1 py-4 text-center ${type === 'surah' ? 'tab-active' : 'text-slate-500'}`;
-            
             if (type === 'surah') loadSurahList();
         }
 
-        // 2. Load Daftar Surah (API Baru)
-        async function loadSurahList() {
-            const container = document.getElementById('surah-grid');
-            container.innerHTML = '<div class="col-span-full text-center">Memuat Surah...</div>';
+        async function loadJadwal() {
             try {
-                const res = await fetch('https://api.alquran.cloud/v1/surah');
-                const data = await res.json();
+                const response = await fetch(scriptURL);
+                const data = await response.json();
+                const container = document.getElementById('juz-grid');
                 container.innerHTML = '';
-                data.data.forEach(s => {
+                data.forEach(item => {
+                    const isTaken = item.nama !== "";
+                    const isDone = item.nama.includes("✅");
                     const card = document.createElement('div');
-                    card.className = "bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center cursor-pointer hover:bg-emerald-50";
-                    card.onclick = () => showQuranText(s.number, 'surah');
+                    card.className = `p-3 rounded-xl border-2 text-center transition-all cursor-pointer ${isTaken ? 'bg-slate-100 border-slate-300' : 'bg-emerald-50 border-emerald-200 hover:border-emerald-500 shadow-sm'}`;
                     card.innerHTML = `
-                        <div class="flex items-center gap-3">
-                            <span class="text-xs bg-slate-100 w-8 h-8 flex items-center justify-center rounded-full text-slate-500 font-bold">${s.number}</span>
-                            <div>
-                                <p class="text-sm font-bold text-slate-800">${s.englishName}</p>
-                                <p class="text-[10px] text-slate-400">${s.englishNameTranslation} | ${s.numberOfAyahs} Ayat</p>
-                            </div>
+                        <div class="text-[10px] font-bold text-emerald-700">JUZ</div>
+                        <div class="text-lg font-black">${item.juz}</div>
+                        <div class="text-[9px] truncate font-medium ${isDone ? 'text-emerald-600' : 'text-slate-500'}">
+                            ${isTaken ? item.nama : 'Tersedia'}
                         </div>
-                        <div class="arabic text-xl text-emerald-700 font-medium">${s.name}</div>
                     `;
+                    card.onclick = () => handleJuzAction(item.juz, isTaken, item.nama);
                     container.appendChild(card);
                 });
-            } catch (e) { container.innerHTML = "Gagal memuat surah."; }
+            } catch (e) { console.error(e); }
         }
 
-        // 3. Tampilkan Teks Al-Qur'an (Bisa per Juz atau per Surah)
-        async function showQuranText(id, type) {
-                        const headerExtra = type === 'juz' ? `
-                    <button onclick="setoranSelesai(${id})" class="bg-yellow-400 text-emerald-900 text-[10px] px-4 py-2 rounded-full font-bold shadow-md hover:bg-yellow-300">
-                        Selesai Setoran ✅
-                    </button>
-                ` : '';
-            
-                container.innerHTML = `
-                    <div class="bg-emerald-800 text-white p-4 rounded-xl flex justify-between items-center sticky top-[130px] z-40 shadow-lg">
-                        <div>
-                            <h3 class="font-bold">Membaca ${type === 'juz' ? 'Juz ' + id : dataArab.data.englishName}</h3>
-                            <p class="text-[9px] text-emerald-200">Klik ayat untuk tandai progres</p>
-                        </div>
-                        <div class="flex gap-2">
-                            ${lastAyat ? `<button onclick="document.getElementById('ayat-${lastAyat}').scrollIntoView({behavior:'smooth'})" class="bg-white text-emerald-800 text-[10px] px-3 py-2 rounded-full font-bold">Lanjut</button>` : ''}
-                            ${headerExtra}
-                        </div>
-                    </div>
-                `;
+        async function handleJuzAction(nomor, isTaken, namaPendaftar) {
+            if (!isTaken) {
+                const nama = prompt(`Juz ${nomor} kosong. Masukkan nama Anda untuk mengambil:`);
+                if (nama) {
+                    await fetch(scriptURL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ "juz": nomor, "nama": nama }) });
+                    alert("Berhasil didaftarkan!"); location.reload();
+                }
+            } else {
+                // Jika sudah diambil, langsung tampilkan suratnya
+                showQuranText(nomor, 'juz', namaPendaftar);
+            }
+        }
+
+        async function showQuranText(id, type, pendaftar = "") {
             const section = document.getElementById('read-section');
             const container = document.getElementById('quran-container');
             section.classList.remove('hidden');
-            container.innerHTML = `<div class="text-center py-10">Memuat teks Arab...</div>`;
+            container.innerHTML = `<div class="text-center py-20 text-emerald-600 font-bold">Sedang memuat isi Al-Qur'an...</div>`;
             container.scrollIntoView({ behavior: 'smooth' });
 
             const endpoint = type === 'juz' ? `juz/${id}` : `surah/${id}`;
@@ -128,93 +116,64 @@
                 const dataIndo = await resIndo.json();
 
                 container.innerHTML = `
-                    <div class="bg-emerald-800 text-white p-4 rounded-xl flex justify-between items-center sticky top-[130px] z-40 shadow-lg">
-                        <h3 class="font-bold">Membaca ${type === 'juz' ? 'Juz ' + id : dataArab.data.englishName}</h3>
-                        ${lastAyat ? `<button onclick="document.getElementById('ayat-${lastAyat}').scrollIntoView({behavior:'smooth'})" class="bg-white text-emerald-800 text-[10px] px-3 py-1 rounded-full font-bold">Lanjut</button>` : ''}
+                    <div class="bg-emerald-800 text-white p-4 rounded-xl flex flex-col gap-3 sticky top-[130px] z-40 shadow-lg">
+                        <div class="flex justify-between items-center">
+                            <h3 class="font-bold">Membaca ${type === 'juz' ? 'Juz ' + id : dataArab.data.englishName}</h3>
+                            <div class="flex gap-2">
+                                ${lastAyat ? `<button onclick="document.getElementById('ayat-${lastAyat}').scrollIntoView({behavior:'smooth'})" class="bg-white text-emerald-800 text-[10px] px-3 py-2 rounded-full font-bold shadow-md">Lanjut</button>` : ''}
+                                ${type === 'juz' && !pendaftar.includes("✅") ? `<button onclick="setoranSelesai(${id}, '${pendaftar}')" class="bg-yellow-400 text-emerald-900 text-[10px] px-3 py-2 rounded-full font-bold shadow-md">Setoran ✅</button>` : ''}
+                            </div>
+                        </div>
                     </div>
                 `;
 
                 dataArab.data.ayahs.forEach((ayat, index) => {
                     const ayatId = type === 'juz' ? `${ayat.surah.number}-${ayat.numberInSurah}` : `${id}-${ayat.numberInSurah}`;
+                    const isLastRead = lastAyat === ayatId;
                     const div = document.createElement('div');
                     div.id = `ayat-${ayatId}`;
-                    div.className = `bg-white p-6 rounded-xl border-b-4 mb-4 ${lastAyat === ayatId ? 'border-emerald-500 bg-emerald-50' : 'border-slate-100'}`;
+                    div.className = `bg-white p-6 rounded-xl border-b-4 mb-4 cursor-pointer transition-all ${isLastRead ? 'border-emerald-500 bg-emerald-50' : 'border-slate-100'}`;
                     div.onclick = () => {
                         localStorage.setItem(lastKey, ayatId);
                         alert("Tanda baca disimpan!");
-                        showQuranText(id, type);
+                        showQuranText(id, type, pendaftar);
                     };
                     div.innerHTML = `
                         <div class="text-right">
-                            <p class="text-[10px] text-slate-400 text-left mb-2">${type === 'juz' ? ayat.surah.englishName : dataArab.data.englishName} : ${ayat.numberInSurah}</p>
-                            <p class="arabic text-4xl leading-[5rem] text-slate-900 mb-6" dir="rtl">${ayat.text}</p>
-                            <p class="text-sm text-slate-600 text-left leading-relaxed">${dataIndo.data.ayahs[index].text}</p>
+                            <div class="flex justify-between items-center mb-4"><span class="text-[10px] text-slate-400">${ayat.surah.englishName} : ${ayat.numberInSurah}</span></div>
+                            <p class="arabic text-3xl leading-[4.5rem] text-slate-900" dir="rtl">${ayat.text}</p>
+                            <p class="text-sm text-slate-600 text-left mt-4 leading-relaxed">${dataIndo.data.ayahs[index].text}</p>
                         </div>
                     `;
                     container.appendChild(div);
                 });
-            } catch (e) { container.innerHTML = "Gagal memuat teks."; }
+            } catch (e) { container.innerHTML = "Gagal memuat teks Al-Qur'an."; }
         }
 
-        // --- Sisanya fungsi loadJadwal & registerJuz dari kode sebelumnya tetap sama ---
-        async function loadJadwal() {
-            try {
-                const response = await fetch(scriptURL);
-                const data = await response.json();
-                const container = document.getElementById('juz-grid');
-                container.innerHTML = '';
-                data.forEach(item => {
-                    const isTaken = item.nama !== "";
-                    const card = document.createElement('div');
-                    card.className = `p-3 rounded-xl border-2 text-center transition-all cursor-pointer ${isTaken ? 'bg-slate-100' : 'bg-emerald-50 border-emerald-200 hover:border-emerald-500'}`;
-                    card.innerHTML = `<div class="text-[10px] font-bold text-emerald-700">JUZ</div><div class="text-lg font-black">${item.juz}</div><div class="text-[9px] truncate">${isTaken ? '👤 '+item.nama : 'Tersedia'}</div>`;
-                    card.onclick = () => isTaken ? showQuranText(item.juz, 'juz') : handleRegister(item.juz);
-                    container.appendChild(card);
-                });
-            } catch (e) { console.log(e); }
-        }
-
-        async function handleRegister(nomor) {
-            const nama = prompt("Masukkan nama Anda:");
-            if (nama) {
-                await fetch(scriptURL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ "juz": nomor, "nama": nama }) });
-                alert("Berhasil!"); location.reload();
+        async function setoranSelesai(nomor, nama) {
+            if (confirm("Alhamdulillah, apakah sudah selesai mengaji Juz ini?")) {
+                confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+                await fetch(scriptURL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ "juz": nomor, "nama": nama, "selesai": true }) });
+                alert("Barakallah! Laporan tersimpan."); location.reload();
             }
+        }
+
+        async function loadSurahList() {
+            const container = document.getElementById('surah-grid');
+            container.innerHTML = 'Memuat surah...';
+            const res = await fetch('https://api.alquran.cloud/v1/surah');
+            const data = await res.json();
+            container.innerHTML = '';
+            data.data.forEach(s => {
+                const card = document.createElement('div');
+                card.className = "bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center cursor-pointer hover:bg-emerald-50";
+                card.onclick = () => showQuranText(s.number, 'surah');
+                card.innerHTML = `<div class="flex items-center gap-3"><span class="text-xs bg-slate-100 w-8 h-8 flex items-center justify-center rounded-full">${s.number}</span><div><p class="text-sm font-bold">${s.englishName}</p></div></div><div class="arabic text-xl text-emerald-700">${s.name}</div>`;
+                container.appendChild(card);
+            });
         }
 
         loadJadwal();
-
-        // FUNGSI BARU UNTUK SELEBRASI & UPDATE DATABASE
-async function setoranSelesai(nomor) {
-    const konfirmasi = confirm(`Alhamdulillah! Apakah Anda sudah menyelesaikan bacaan Juz ${nomor}?`);
-    if (konfirmasi) {
-        // Efek Kembang Api
-        confetti({
-            particleCount: 150,
-            spread: 70,
-            origin: { y: 0.6 },
-            colors: ['#10b981', '#facc15', '#ffffff']
-        });
-
-        // Ambil nama dari database lokal atau prompt
-        const nama = prompt("Konfirmasi nama Anda untuk laporan khataman:");
-        
-        if (nama) {
-            try {
-                await fetch(scriptURL, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    body: JSON.stringify({ "juz": nomor, "nama": nama, "selesai": true })
-                });
-                alert("Barakallah! Setoran Anda telah tercatat.");
-                location.reload();
-            } catch (e) {
-                alert("Gagal mengirim laporan, tapi selamat atas khatamannya!");
-            }
-        }
-    }
-}
     </script>
 </body>
 </html>
-
