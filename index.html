@@ -67,29 +67,56 @@
         fetchSurah();
 
 
-        async function pilihJuz(nomor) {
+        const scriptURL = 'TEMPEL_URL_WEB_APP_APPS_SCRIPT_DISINI';
+
+async function loadJadwal() {
+    const response = await fetch(scriptURL);
+    const data = await response.json();
+    const container = document.getElementById('juz-grid');
+    container.innerHTML = '';
+
+    data.forEach(item => {
+        const isTaken = item.nama !== "";
+        const card = document.createElement('div');
+        card.className = `p-4 rounded-lg border-2 transition-all text-center ${
+            isTaken ? 'bg-gray-100 border-gray-300' : 'bg-emerald-50 border-emerald-200 hover:border-emerald-500 cursor-pointer'
+        }`;
+        
+        card.innerHTML = `
+            <div class="text-sm font-bold text-emerald-600">JUZ ${item.juz}</div>
+            <div class="text-xs mt-1 font-medium ${isTaken ? 'text-gray-600' : 'text-emerald-400 italic'}">
+                ${isTaken ? item.nama : 'Tersedia'}
+            </div>
+        `;
+
+        if (!isTaken) {
+            card.onclick = () => pilihJuz(item.juz);
+        }
+        container.appendChild(card);
+    });
+}
+
+async function pilihJuz(nomor) {
     const nama = prompt(`Masukkan nama Anda untuk mengambil Juz ${nomor}:`);
     if (nama) {
-        // GANTI URL DI BAWAH DENGAN API DARI SHEETDB KAMU
-        const apiURL = 'https://sheetdb.io/api/v1/KODE_API_KAMU';
-
-        try {
-            const response = await fetch(`${apiURL}/juz/${nomor}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ "data": { "nama": nama } })
-            });
-
-            if(response.ok) {
-                alert(`Alhamdulillah, Juz ${nomor} berhasil diambil oleh ${nama}`);
-                location.reload(); // Refresh halaman untuk update tampilan
-            }
-        } catch (error) {
-            alert("Gagal menyimpan data. Coba lagi nanti.");
+        const response = await fetch(scriptURL, {
+            method: 'POST',
+            body: JSON.stringify({ "juz": nomor, "nama": nama })
+        });
+        const result = await response.text();
+        if (result === "Berhasil") {
+            alert("Alhamdulillah, berhasil dipilih!");
+            loadJadwal(); // Segarkan tampilan
+        } else {
+            alert("Maaf, Juz ini sudah diambil orang lain.");
         }
     }
 }
+
+// Panggil fungsi saat halaman dimuat
+loadJadwal();
     </script>
 </body>
 
 </html>
+
