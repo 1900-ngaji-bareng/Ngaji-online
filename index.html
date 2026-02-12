@@ -65,6 +65,31 @@
         }
 
         fetchSurah();
+
+
+        async function pilihJuz(nomor) {
+    const nama = prompt(`Masukkan nama Anda untuk mengambil Juz ${nomor}:`);
+    if (nama) {
+        // GANTI URL DI BAWAH DENGAN API DARI SHEETDB KAMU
+        const apiURL = 'https://sheetdb.io/api/v1/KODE_API_KAMU';
+
+        try {
+            const response = await fetch(`${apiURL}/juz/${nomor}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ "data": { "nama": nama } })
+            });
+
+            if(response.ok) {
+                alert(`Alhamdulillah, Juz ${nomor} berhasil diambil oleh ${nama}`);
+                location.reload(); // Refresh halaman untuk update tampilan
+            }
+        } catch (error) {
+            alert("Gagal menyimpan data. Coba lagi nanti.");
+        }
+    }
+}
     </script>
 </body>
+
 </html>
