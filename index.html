@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NgajiYuk - Al-Qur'an Digital</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Amiri&family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        .arabic { font-family: 'Amiri', serif; font-size: 2.5rem; line-height: 4rem; }
+    </style>
+</head>
+<body class="bg-gray-50 font-['Inter']">
+
+    <nav class="bg-emerald-600 p-4 text-white shadow-lg sticky top-0 z-50">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-bold">NgajiYuk</h1>
+            <p class="text-sm">Membaca Al-Qur'an di mana saja</p>
+        </div>
+    </nav>
+
+    <header class="bg-emerald-500 py-12 text-center text-white">
+        <h2 class="text-4xl font-extrabold mb-2">Mari Mengaji</h2>
+        <p class="opacity-90">Pilih Surah untuk mulai membaca</p>
+    </header>
+
+    <main class="container mx-auto p-6">
+        <div id="surah-list" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <p class="text-center col-span-full">Memuat daftar surah...</p>
+        </div>
+    </main>
+
+    <footer class="text-center py-8 text-gray-500 text-sm">
+        &copy; 2026 NgajiYuk Digital - Dibuat dengan niat baik.
+    </footer>
+
+    <script>
+        // Mengambil data dari API Al-Qur'an gratis
+        async function fetchSurah() {
+            try {
+                const response = await fetch('https://equran.id/api/v2/surat');
+                const data = await response.json();
+                const surahs = data.data;
+                const container = document.getElementById('surah-list');
+                
+                container.innerHTML = '';
+                surahs.forEach(surah => {
+                    const card = `
+                        <div class="bg-white p-5 rounded-xl shadow-sm hover:shadow-md transition-all border-l-4 border-emerald-500 cursor-pointer">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <span class="text-emerald-600 font-bold">#${surah.nomor}</span>
+                                    <h3 class="text-lg font-bold text-gray-800">${surah.namaLatin}</h3>
+                                    <p class="text-sm text-gray-500">${surah.arti} (${surah.jumlahAyat} Ayat)</p>
+                                </div>
+                                <div class="arabic text-2xl text-emerald-700">${surah.nama}</div>
+                            </div>
+                        </div>
+                    `;
+                    container.innerHTML += card;
+                });
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        fetchSurah();
+    </script>
+</body>
+</html>
