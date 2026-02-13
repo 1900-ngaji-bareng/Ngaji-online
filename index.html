@@ -29,12 +29,11 @@
         </div>
     </div>
 
-    <section id="dashboard-area" class="container mx-auto p-4">
-    </section>
+    <section id="dashboard-area" class="container mx-auto px-4 mb-4"></section>
     
     <section id="section-juz" class="container mx-auto p-4">
         <div class="bg-white rounded-2xl shadow-sm p-6 border border-slate-200">
-            <h2 class="text-xl font-bold mb-4 text-slate-800 text-center sm:text-left">Pilih Jadwal Juz</h2>
+            <h2 class="text-xl font-bold mb-4 text-slate-800 text-center sm:text-left font-bold">Pilih Jadwal Juz</h2>
             <div id="juz-grid" class="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-10 gap-2">
                 <div class="col-span-full text-center py-4 text-slate-400 italic text-sm">Menghubungkan ke Sheets...</div>
             </div>
@@ -50,60 +49,108 @@
     </section>
 
     <script>
-        // MASUKKAN URL APPS SCRIPT KAMU DI SINI
         const scriptURL = 'https://script.google.com/macros/s/AKfycby52vz1IOIJLBlu4wD3DDtFvjbyFFWpXaUbE0D8kMzYIR0odo6FLLVSbLQu-4j4hUS_cQ/exec';
+        let databaseGlobal = [];
 
         function switchTab(type) {
             document.getElementById('section-juz').classList.toggle('hidden', type !== 'juz');
             document.getElementById('section-surah').classList.toggle('hidden', type !== 'surah');
+            document.getElementById('dashboard-area').classList.toggle('hidden', type !== 'juz');
             document.getElementById('read-section').classList.add('hidden');
+            
             document.getElementById('tab-juz').className = `flex-1 py-4 text-center ${type === 'juz' ? 'tab-active' : 'text-slate-500'}`;
             document.getElementById('tab-surah').className = `flex-1 py-4 text-center ${type === 'surah' ? 'tab-active' : 'text-slate-500'}`;
+            
             if (type === 'surah') loadSurahList();
         }
 
-        async function loadJadwal() {
+        // AMBIL DATA AWAL
+        async function init() {
             try {
                 const response = await fetch(scriptURL);
-                const data = await response.json();
-                const container = document.getElementById('juz-grid');
-                container.innerHTML = '';
-                data.forEach(item => {
-                    const isTaken = item.nama !== "";
-                    const isDone = item.nama.includes("✅");
-                    const card = document.createElement('div');
-                    card.className = `p-3 rounded-xl border-2 text-center transition-all cursor-pointer ${isTaken ? 'bg-slate-100 border-slate-300' : 'bg-emerald-50 border-emerald-200 hover:border-emerald-500 shadow-sm'}`;
-                    card.innerHTML = `
-                        <div class="text-[10px] font-bold text-emerald-700">JUZ</div>
-                        <div class="text-lg font-black">${item.juz}</div>
-                        <div class="text-[9px] truncate font-medium ${isDone ? 'text-emerald-600' : 'text-slate-500'}">
-                            ${isTaken ? item.nama : 'Tersedia'}
-                        </div>
-                    `;
-                    card.onclick = () => handleJuzAction(item.juz, isTaken, item.nama);
-                    container.appendChild(card);
-                });
-            } catch (e) { console.error(e); }
-        }
-
-        async function handleJuzAction(nomor, isTaken, namaPendaftar) {
-            if (!isTaken) {
-                const nama = prompt(`Juz ${nomor} kosong. Masukkan nama Anda untuk mengambil:`);
-                if (nama) {
-                    await fetch(scriptURL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ "juz": nomor, "nama": nama }) });
-                    alert("Berhasil didaftarkan!"); location.reload();
-                }
-            } else {
-                // Jika sudah diambil, langsung tampilkan suratnya
-                showQuranText(nomor, 'juz', namaPendaftar);
+                databaseGlobal = await response.json();
+                renderJuzGrid(databaseGlobal);
+            } catch (e) {
+                console.error("Gagal load data:", e);
+                document.getElementById('juz-grid').innerHTML = "Gagal terhubung ke database.";
             }
         }
 
-        async function showQuranText(id, type, pendaftar = "") {
+        function renderJuzGrid(data) {
+            const container = document.getElementById('juz-grid');
+            container.innerHTML = '';
+            
+            const kloters = [...new Set(data.map(item => item.kloter))];
+            const kloterTerakhir = Math.max(...kloters);
+            
+            updateDashboard(data, kloters);
+
+            const dataTampil = data.filter(d => d.kloter === kloterTerakhir);
+            container.innerHTML = `<div class="col-span-full font-bold text-center mb-2 text-emerald-800 bg-emerald-50 py-2 rounded-lg">Menampilkan Kloter ${kloterTerakhir}</div>`;
+
+            dataTampil.forEach(item => {
+                const isTaken = item.nama !== "";
+                const isDone = item.nama.includes("✅");
+                const card = document.createElement('div');
+                card.className = `p-3 rounded-xl border-2 text-center transition-all cursor-pointer ${isTaken ? 'bg-slate-100 border-slate-300' : 'bg-emerald-50 border-emerald-200 hover:border-emerald-500 shadow-sm'}`;
+                card.innerHTML = `
+                    <div class="text-[10px] font-bold text-emerald-700">JUZ</div>
+                    <div class="text-lg font-black">${item.juz}</div>
+                    <div class="text-[9px] truncate font-medium ${isDone ? 'text-emerald-600 font-bold' : 'text-slate-500'}">
+                        ${isTaken ? item.nama : 'Tersedia'}
+                    </div>
+                `;
+                card.onclick = () => handleJuzAction(item.kloter, item.juz, isTaken, item.nama);
+                container.appendChild(card);
+            });
+        }
+
+        function updateDashboard(data, kloters) {
+            const dashboardContainer = document.getElementById('dashboard-area');
+            dashboardContainer.innerHTML = '<h2 class="font-bold mb-3 text-slate-700">Dashboard Capaian</h2>';
+            
+            kloters.forEach(k => {
+                const dataK = data.filter(d => d.kloter === k);
+                const selesai = dataK.filter(d => d.nama.includes("✅")).length;
+                const terisi = dataK.filter(d => d.nama !== "").length;
+                const persen = Math.round((selesai / 30) * 100);
+
+                dashboardContainer.innerHTML += `
+                    <div class="mb-3 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="font-bold text-slate-600">Kloter ${k} (${terisi}/30 Terisi)</span>
+                            <span class="font-bold text-emerald-600">${persen}% Selesai</span>
+                        </div>
+                        <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                            <div class="bg-emerald-500 h-full transition-all duration-500" style="width: ${persen}%"></div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        async function handleJuzAction(kloter, juz, isTaken, namaPendaftar) {
+            if (!isTaken) {
+                const nama = prompt(`Daftar Juz ${juz} (Kloter ${kloter}). Masukkan Nama Anda:`);
+                if (nama) {
+                    await fetch(scriptURL, { 
+                        method: 'POST', 
+                        mode: 'no-cors', 
+                        body: JSON.stringify({ "kloter": kloter, "juz": juz, "nama": nama }) 
+                    });
+                    alert("Berhasil mendaftar!");
+                    location.reload();
+                }
+            } else {
+                showQuranText(juz, 'juz', namaPendaftar, kloter);
+            }
+        }
+
+        async function showQuranText(id, type, pendaftar = "", kloter = "") {
             const section = document.getElementById('read-section');
             const container = document.getElementById('quran-container');
             section.classList.remove('hidden');
-            container.innerHTML = `<div class="text-center py-20 text-emerald-600 font-bold">Sedang memuat isi Al-Qur'an...</div>`;
+            container.innerHTML = `<div class="text-center py-20 text-emerald-600 font-bold italic">Memuat ayat Al-Qur'an...</div>`;
             container.scrollIntoView({ behavior: 'smooth' });
 
             const endpoint = type === 'juz' ? `juz/${id}` : `surah/${id}`;
@@ -121,10 +168,13 @@
                 container.innerHTML = `
                     <div class="bg-emerald-800 text-white p-4 rounded-xl flex flex-col gap-3 sticky top-[130px] z-40 shadow-lg">
                         <div class="flex justify-between items-center">
-                            <h3 class="font-bold">Membaca ${type === 'juz' ? 'Juz ' + id : dataArab.data.englishName}</h3>
+                            <div>
+                                <h3 class="font-bold">${type === 'juz' ? 'Juz ' + id : dataArab.data.englishName}</h3>
+                                <p class="text-[10px] opacity-80">${pendaftar ? 'Pembaca: ' + pendaftar : ''}</p>
+                            </div>
                             <div class="flex gap-2">
-                                ${lastAyat ? `<button onclick="document.getElementById('ayat-${lastAyat}').scrollIntoView({behavior:'smooth'})" class="bg-white text-emerald-800 text-[10px] px-3 py-2 rounded-full font-bold shadow-md">Lanjut</button>` : ''}
-                                ${type === 'juz' && !pendaftar.includes("✅") ? `<button onclick="setoranSelesai(${id}, '${pendaftar}')" class="bg-yellow-400 text-emerald-900 text-[10px] px-3 py-2 rounded-full font-bold shadow-md">Setoran ✅</button>` : ''}
+                                ${lastAyat ? `<button onclick="document.getElementById('ayat-${lastAyat}').scrollIntoView({behavior:'smooth'})" class="bg-white text-emerald-800 text-[10px] px-3 py-2 rounded-full font-bold">Lanjut</button>` : ''}
+                                ${type === 'juz' && !pendaftar.includes("✅") ? `<button onclick="setoranSelesai(${id}, '${pendaftar}', ${kloter})" class="bg-yellow-400 text-emerald-900 text-[10px] px-3 py-2 rounded-full font-bold">Setoran ✅</button>` : ''}
                             </div>
                         </div>
                     </div>
@@ -135,15 +185,15 @@
                     const isLastRead = lastAyat === ayatId;
                     const div = document.createElement('div');
                     div.id = `ayat-${ayatId}`;
-                    div.className = `bg-white p-6 rounded-xl border-b-4 mb-4 cursor-pointer transition-all ${isLastRead ? 'border-emerald-500 bg-emerald-50' : 'border-slate-100'}`;
+                    div.className = `bg-white p-6 rounded-xl border-b-4 mb-4 cursor-pointer transition-all ${isLastRead ? 'border-emerald-500 bg-emerald-50 shadow-md' : 'border-slate-100'}`;
                     div.onclick = () => {
                         localStorage.setItem(lastKey, ayatId);
-                        alert("Tanda baca disimpan!");
-                        showQuranText(id, type, pendaftar);
+                        alert("Progres disimpan!");
+                        showQuranText(id, type, pendaftar, kloter);
                     };
                     div.innerHTML = `
                         <div class="text-right">
-                            <div class="flex justify-between items-center mb-4"><span class="text-[10px] text-slate-400">${ayat.surah.englishName} : ${ayat.numberInSurah}</span></div>
+                            <div class="flex justify-between items-center mb-4"><span class="text-[10px] text-slate-400 font-bold bg-slate-100 px-2 py-1 rounded">${ayat.surah.englishName} : ${ayat.numberInSurah}</span></div>
                             <p class="arabic text-3xl leading-[4.5rem] text-slate-900" dir="rtl">${ayat.text}</p>
                             <p class="text-sm text-slate-600 text-left mt-4 leading-relaxed">${dataIndo.data.ayahs[index].text}</p>
                         </div>
@@ -153,113 +203,48 @@
             } catch (e) { container.innerHTML = "Gagal memuat teks Al-Qur'an."; }
         }
 
-        async function setoranSelesai(nomor, nama) {
-            if (confirm("Alhamdulillah, apakah sudah selesai mengaji Juz ini?")) {
+        async function setoranSelesai(juz, nama, kloter) {
+            if (confirm("Alhamdulillah, tandai Juz ini sebagai Selesai?")) {
                 confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
-                await fetch(scriptURL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ "juz": nomor, "nama": nama, "selesai": true }) });
-                alert("Barakallah! Laporan tersimpan."); location.reload();
+                await fetch(scriptURL, { 
+                    method: 'POST', 
+                    mode: 'no-cors', 
+                    body: JSON.stringify({ "kloter": kloter, "juz": juz, "nama": nama, "selesai": true }) 
+                });
+                alert("Laporan setoran berhasil dikirim!");
+                location.reload();
             }
         }
 
         async function loadSurahList() {
             const container = document.getElementById('surah-grid');
-            container.innerHTML = 'Memuat surah...';
-            const res = await fetch('https://api.alquran.cloud/v1/surah');
-            const data = await res.json();
-            container.innerHTML = '';
-            data.data.forEach(s => {
-                const card = document.createElement('div');
-                card.className = "bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center cursor-pointer hover:bg-emerald-50";
-                card.onclick = () => showQuranText(s.number, 'surah');
-                card.innerHTML = `<div class="flex items-center gap-3"><span class="text-xs bg-slate-100 w-8 h-8 flex items-center justify-center rounded-full">${s.number}</span><div><p class="text-sm font-bold">${s.englishName}</p></div></div><div class="arabic text-xl text-emerald-700">${s.name}</div>`;
-                container.appendChild(card);
-            });
+            if (container.innerHTML !== '') return;
+            container.innerHTML = '<div class="col-span-full text-center py-10">Memuat Daftar Surah...</div>';
+            try {
+                const res = await fetch('https://api.alquran.cloud/v1/surah');
+                const data = await res.json();
+                container.innerHTML = '';
+                data.data.forEach(s => {
+                    const card = document.createElement('div');
+                    card.className = "bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center cursor-pointer hover:bg-emerald-50 transition-colors";
+                    card.onclick = () => showQuranText(s.number, 'surah');
+                    card.innerHTML = `
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs bg-emerald-100 text-emerald-700 w-8 h-8 flex items-center justify-center rounded-full font-bold">${s.number}</span>
+                            <div>
+                                <p class="text-sm font-bold text-slate-800">${s.englishName}</p>
+                                <p class="text-[10px] text-slate-400">${s.numberOfAyahs} Ayat</p>
+                            </div>
+                        </div>
+                        <div class="arabic text-xl text-emerald-700 font-bold">${s.name}</div>
+                    `;
+                    container.appendChild(card);
+                });
+            } catch (e) { container.innerHTML = "Gagal memuat daftar surah."; }
         }
 
-        loadJadwal();
-
-        let databaseGlobal = [];
-
-// 1. Fungsi untuk Memproses Data Kloter & Dashboard
-function renderJuzGrid(data) {
-    databaseGlobal = data; // Simpan untuk dashboard
-    const container = document.getElementById('juz-grid');
-    container.innerHTML = '';
-    
-    // Kelompokkan data berdasarkan kloter
-    const kloters = [...new Set(data.map(item => item.kloter))];
-    const kloterTerakhir = Math.max(...kloters);
-    
-    // Cek apakah kloter terakhir sudah penuh (semua 30 juz ada namanya)
-    const kloterTerakhirData = data.filter(d => d.kloter === kloterTerakhir);
-    const isPenuh = kloterTerakhirData.every(d => d.nama !== "");
-    
-    // TAMPILKAN DASHBOARD
-    updateDashboard(data, kloters);
-
-    // TAMPILKAN GRID KLOTER (Kita tampilkan kloter terakhir atau pilihan user)
-    const targetKloter = isPenuh ? kloterTerakhir + 1 : kloterTerakhir;
-    
-    // Jika kloter baru belum ada di database, kita buat tampilan dummy (user akan otomatis nambah ke sheet saat daftar)
-    const dataTampil = data.filter(d => d.kloter === kloterTerakhir);
-
-    // Render Judul Kloter Aktif
-    container.innerHTML = `<div class="col-span-full font-bold text-center mb-2 text-emerald-800">Menampilkan Kloter ${kloterTerakhir} ${isPenuh ? '(Penuh - Menunggu Kloter Baru)' : ''}</div>`;
-
-    dataTampil.forEach(item => {
-        const isTaken = item.nama !== "";
-        const card = document.createElement('div');
-        card.className = `p-3 rounded-xl border-2 text-center cursor-pointer ${isTaken ? 'bg-slate-100' : 'bg-emerald-50 border-emerald-200'}`;
-        card.innerHTML = `<div>Juz ${item.juz}</div><div class="text-[9px] truncate">${isTaken ? item.nama : 'Pilih'}</div>`;
-        card.onclick = () => handleJuzAction(item.kloter, item.juz, isTaken, item.nama);
-        container.appendChild(card);
-    });
-}
-
-// 2. Dashboard Capaian
-function updateDashboard(data, kloters) {
-    const dashboardContainer = document.getElementById('dashboard-area'); // Buat elemen ini di HTML
-    if(!dashboardContainer) return;
-    
-    dashboardContainer.innerHTML = '<h2 class="font-bold mb-3">Dashboard Capaian Kloter</h2>';
-    
-    kloters.forEach(k => {
-        const dataK = data.filter(d => d.kloter === k);
-        const selesai = dataK.filter(d => d.nama.includes("✅")).length;
-        const terisi = dataK.filter(d => d.nama !== "").length;
-        const persen = Math.round((selesai / 30) * 100);
-
-        dashboardContainer.innerHTML += `
-            <div class="mb-4 bg-white p-4 rounded-xl shadow-sm border border-slate-100">
-                <div class="flex justify-between text-xs mb-1">
-                    <span>Kloter ${k} (${terisi}/30 Terisi)</span>
-                    <span class="font-bold">${persen}% Khatam</span>
-                </div>
-                <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                    <div class="bg-emerald-500 h-full" style="width: ${persen}%"></div>
-                </div>
-            </div>
-        `;
-    });
-}
-
-// 3. Update Fungsi handleJuzAction untuk mendukung kloter
-async function handleJuzAction(kloter, juz, isTaken, namaPendaftar) {
-    if (!isTaken) {
-        const nama = prompt(`Daftar Juz ${juz} Kloter ${kloter}:`);
-        if (nama) {
-            await fetch(scriptURL, { 
-                method: 'POST', 
-                mode: 'no-cors', 
-                body: JSON.stringify({ "kloter": kloter, "juz": juz, "nama": nama }) 
-            });
-            location.reload();
-        }
-    } else {
-        showQuranText(juz, 'juz', namaPendaftar, kloter);
-    }
-}
+        // Mulai aplikasi
+        init();
     </script>
 </body>
 </html>
-
