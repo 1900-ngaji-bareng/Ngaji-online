@@ -50,7 +50,7 @@
     </section>
 
     <script>
-        const scriptURL = 'https://script.google.com/macros/s/AKfycbwhrtqD0R7IXz7tURTdVJCLFT-WSU9PKk39ZBnL8tXBMO-2ICy4a4NISUR_gne7fCX-/exec';
+        const scriptURL = 'https://script.google.com/macros/s/AKfycbz65b7vFgAUE5_T3dH1ECLW3XCgsg-4m-bkWXfGrUzH0bwK8qp5wNjJZOYsY4_MMOWjJA/exec';
         let databaseGlobal = [];
 
         // 1. Inisialisasi Data
@@ -187,4 +187,61 @@
                             </div>
                             <p class="arabic text-3xl leading-[4.5rem] text-slate-900" dir="rtl">${ayat.text}</p>
                             <p class="text-sm text-slate-600 text-left mt-6 leading-relaxed border-t pt-4 italic">${dataI.data.ayahs[i].text}</p>
+                        </div>`;
+                    container.appendChild(div);
+                });
+            } catch (e) { 
+                container.innerHTML = `<div class="p-10 text-center text-red-500">Gagal memuat ayat Al-Qur'an.</div>`; 
+            }
+        }
 
+        // 5. Fungsi Setoran Selesai
+        async function finishSetoran(juz, nama, kloter) {
+            if (confirm("Alhamdulillah, apakah benar sudah selesai membaca Juz ini?")) {
+                confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+                await fetch(scriptURL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ kloter, juz, nama, selesai: true }) });
+                alert("Barakallah! Laporan tersimpan.");
+                location.reload();
+            }
+        }
+
+        // 6. Daftar Surah
+        async function loadSurahList() {
+            const container = document.getElementById('surah-grid');
+            if (container.innerHTML !== '') return;
+            container.innerHTML = '<div class="col-span-full text-center py-20">Memuat Daftar Surah...</div>';
+            try {
+                const res = await fetch('https://api.alquran.cloud/v1/surah');
+                const data = await res.json();
+                container.innerHTML = '';
+                data.data.forEach(s => {
+                    const card = document.createElement('div');
+                    card.className = "bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center cursor-pointer hover:bg-emerald-50";
+                    card.onclick = () => showQuranText(s.number, 'surah');
+                    card.innerHTML = `
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs bg-emerald-100 text-emerald-700 w-8 h-8 flex items-center justify-center rounded-full font-bold">${s.number}</span>
+                            <div><p class="text-sm font-bold text-slate-800">${s.englishName}</p></div>
+                        </div>
+                        <div class="arabic text-xl text-emerald-700">${s.name}</div>`;
+                    container.appendChild(card);
+                });
+            } catch (e) { container.innerHTML = "Gagal memuat surah."; }
+        }
+
+        // 7. Navigasi Tab
+        function switchTab(type) {
+            document.getElementById('section-juz').classList.toggle('hidden', type !== 'juz');
+            document.getElementById('section-surah').classList.toggle('hidden', type !== 'surah');
+            document.getElementById('dashboard-area').classList.toggle('hidden', type !== 'juz');
+            document.getElementById('read-section').classList.add('hidden');
+            document.getElementById('tab-juz').className = `flex-1 py-4 text-center ${type === 'juz' ? 'tab-active' : 'text-slate-500'}`;
+            document.getElementById('tab-surah').className = `flex-1 py-4 text-center ${type === 'surah' ? 'tab-active' : 'text-slate-500'}`;
+            if (type === 'surah') loadSurahList();
+        }
+
+        // Jalankan Inisialisasi
+        init();
+    </script>
+</body>
+</html>
