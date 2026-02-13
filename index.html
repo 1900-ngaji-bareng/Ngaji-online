@@ -11,21 +11,22 @@
         .arabic { font-family: 'Amiri', serif; }
         .sticky-header { position: sticky; top: 0; z-index: 50; }
         .tab-active { border-bottom: 4px solid #10b981; color: #065f46; font-weight: bold; }
+        html { scroll-behavior: smooth; }
     </style>
 </head>
 <body class="bg-slate-50 font-['Inter']">
 
     <nav class="bg-emerald-700 p-4 text-white shadow-lg sticky-header">
         <div class="container mx-auto flex justify-between items-center">
-            <h1 class="text-xl font-bold italic">📖 NGAJIYUK</h1>
+            <h1 class="text-xl font-bold italic tracking-tighter">📖 NGAJIYUK</h1>
             <div class="text-[10px] bg-emerald-800 px-3 py-1 rounded-full border border-emerald-600">Online</div>
         </div>
     </nav>
 
-    <div class="bg-white shadow-sm mb-4">
+    <div class="bg-white shadow-sm mb-4 border-b">
         <div class="container mx-auto flex">
-            <button onclick="switchTab('juz')" id="tab-juz" class="flex-1 py-4 text-center tab-active">Jadwal Juz</button>
-            <button onclick="switchTab('surah')" id="tab-surah" class="flex-1 py-4 text-center text-slate-500">Daftar Surah</button>
+            <button onclick="switchTab('juz')" id="tab-juz" class="flex-1 py-4 text-center tab-active transition-all">Jadwal Juz</button>
+            <button onclick="switchTab('surah')" id="tab-surah" class="flex-1 py-4 text-center text-slate-500 transition-all">Daftar Surah</button>
         </div>
     </div>
 
@@ -49,33 +50,40 @@
     </section>
 
     <script>
-        // GANTI DENGAN URL APPS SCRIPT KAMU
         const scriptURL = 'https://script.google.com/macros/s/AKfycbz65b7vFgAUE5_T3dH1ECLW3XCgsg-4m-bkWXfGrUzH0bwK8qp5wNjJZOYsY4_MMOWjJA/exec';
-        
         let databaseGlobal = [];
 
+        // 1. Inisialisasi Data
         async function init() {
+            const grid = document.getElementById('juz-grid');
             try {
                 const response = await fetch(scriptURL);
+                if (!response.ok) throw new Error('Respon server gagal');
                 databaseGlobal = await response.json();
+                
+                if (databaseGlobal.length === 0) {
+                    grid.innerHTML = `<div class="col-span-full text-center text-orange-500 font-bold">Data di Google Sheets masih kosong!</div>`;
+                    return;
+                }
                 renderUI();
             } catch (e) {
-                document.getElementById('juz-grid').innerHTML = "Gagal memuat data.";
+                console.error(e);
+                grid.innerHTML = `<div class="col-span-full text-center p-4 text-red-600">Gagal memuat data! Periksa koneksi atau Script URL.</div>`;
             }
         }
 
+        // 2. Render Tampilan Utama
         function renderUI() {
             const kloters = [...new Set(databaseGlobal.map(item => item.kloter))];
-            
-            // LOGIKA: Cari kloter terkecil yang belum penuh 30 juz
             let activeKloter = kloters[0] || 1;
+
             for (let k of kloters) {
                 const isFull = databaseGlobal.filter(d => d.kloter === k && d.nama !== "").length === 30;
                 activeKloter = k;
-                if (!isFull) break; // Berhenti di kloter pertama yang belum penuh
+                if (!isFull) break;
             }
 
-            // Tampilkan Dashboard
+            // Dashboard
             const dash = document.getElementById('dashboard-area');
             dash.innerHTML = '<h2 class="font-bold text-slate-700 mb-3 px-1">Capaian Khataman</h2>';
             kloters.forEach(k => {
@@ -90,21 +98,20 @@
                             <span class="text-emerald-600 font-bold">${persen}% Khatam</span>
                         </div>
                         <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                            <div class="bg-emerald-500 h-full" style="width: ${persen}%"></div>
+                            <div class="bg-emerald-500 h-full transition-all duration-500" style="width: ${persen}%"></div>
                         </div>
                     </div>`;
             });
 
-            // Tampilkan Grid Juz
+            // Grid Juz
             const grid = document.getElementById('juz-grid');
             grid.innerHTML = `<div class="col-span-full font-bold text-center mb-2 text-emerald-800 bg-emerald-50 py-2 rounded-lg">Kloter ${activeKloter} sedang berjalan</div>`;
             
-            const dataTampil = databaseGlobal.filter(d => d.kloter === activeKloter);
-            dataTampil.forEach(item => {
+            databaseGlobal.filter(d => d.kloter === activeKloter).forEach(item => {
                 const isTaken = item.nama !== "";
                 const isDone = item.nama.includes("✅");
                 const card = document.createElement('div');
-                card.className = `p-3 rounded-xl border-2 text-center transition-all cursor-pointer ${isTaken ? 'bg-slate-100 border-slate-300' : 'bg-emerald-50 border-emerald-200 hover:border-emerald-500 shadow-sm'}`;
+                card.className = `p-3 rounded-xl border-2 text-center transition-all cursor-pointer ${isTaken ? 'bg-slate-100 border-slate-300' : 'bg-emerald-50 border-emerald-200 hover:border-emerald-500'}`;
                 card.innerHTML = `
                     <div class="text-[10px] font-bold text-emerald-700">JUZ</div>
                     <div class="text-lg font-black text-slate-800">${item.juz}</div>
@@ -116,6 +123,7 @@
             });
         }
 
+        // 3. Aksi Daftar atau Baca
         async function handleAction(kloter, juz, isTaken, pendaftar) {
             if (!isTaken) {
                 const nama = prompt(`Daftar Juz ${juz} Kloter ${kloter}. Nama Anda:`);
@@ -129,35 +137,12 @@
             }
         }
 
-      async function init() {
-            const grid = document.getElementById('juz-grid');
-            try {
-                const response = await fetch(scriptURL);
-                if (!response.ok) throw new Error('Respon server gagal');
-                
-                databaseGlobal = await response.json();
-                
-                if (databaseGlobal.length === 0) {
-                    grid.innerHTML = `<div class="col-span-full text-center text-orange-500 font-bold">Data di Google Sheets masih kosong!</div>`;
-                    return;
-                }
-                
-                renderUI();
-            } catch (e) {
-                console.error(e);
-                grid.innerHTML = `
-                    <div class="col-span-full text-center p-4 bg-red-50 text-red-600 rounded-lg">
-                        <p class="font-bold">Gagal memuat data!</p>
-                        <p class="text-[10px] mt-1">Pastikan scriptURL sudah benar dan Apps Script sudah di-deploy sebagai "Anyone".</p>
-                    </div>`;
-            }
-        }
-
+        // 4. Fungsi Baca Al-Qur'an (DIPERBAIKI)
         async function showQuranText(id, type, pendaftar = "", kloter = "") {
             const section = document.getElementById('read-section');
             const container = document.getElementById('quran-container');
             section.classList.remove('hidden');
-            container.innerHTML = `<div class="text-center py-20 text-emerald-600 font-bold">Membuka Mushaf...</div>`;
+            container.innerHTML = `<div class="text-center py-20 text-emerald-600 font-bold animate-pulse">Membuka Mushaf...</div>`;
             container.scrollIntoView({ behavior: 'smooth' });
 
             const endpoint = type === 'juz' ? `juz/${id}` : `surah/${id}`;
@@ -176,5 +161,29 @@
                     <div class="bg-emerald-800 text-white p-4 rounded-xl flex justify-between items-center sticky top-[130px] z-40 shadow-lg">
                         <div>
                             <h3 class="font-bold">${type === 'juz' ? 'Juz ' + id : dataA.data.englishName}</h3>
+                            <p class="text-[9px] opacity-80">${pendaftar ? 'Pembaca: ' + pendaftar : ''}</p>
+                        </div>
+                        <div class="flex gap-2">
+                            ${lastAyat ? `<button onclick="document.getElementById('ayat-${lastAyat}').scrollIntoView({behavior:'smooth'})" class="bg-white text-emerald-800 text-[10px] px-3 py-2 rounded-full font-bold">Lanjut</button>` : ''}
+                            ${type === 'juz' && !pendaftar.includes("✅") ? `<button onclick="finishSetoran(${id}, '${pendaftar}', ${kloter})" class="bg-yellow-400 text-emerald-900 text-[10px] px-3 py-2 rounded-full font-bold shadow-md">Setoran ✅</button>` : ''}
+                        </div>
+                    </div>`;
 
-
+                dataA.data.ayahs.forEach((ayat, i) => {
+                    const ayatId = `${ayat.surah.number}-${ayat.numberInSurah}`;
+                    const active = lastAyat === ayatId;
+                    const div = document.createElement('div');
+                    div.id = `ayat-${ayatId}`;
+                    div.className = `bg-white p-8 rounded-xl border-b-4 mb-4 cursor-pointer transition-all hover:bg-emerald-50 ${active ? 'border-emerald-500 ring-2 ring-emerald-100' : 'border-slate-100'}`;
+                    div.onclick = () => { 
+                        localStorage.setItem(lastKey, ayatId); 
+                        alert("Penanda disimpan!"); 
+                        showQuranText(id, type, pendaftar, kloter); 
+                    };
+                    div.innerHTML = `
+                        <div class="text-right">
+                            <div class="flex justify-between items-center mb-4">
+                                <span class="text-[10px] text-slate-400 font-bold bg-slate-100 px-2 py-1 rounded">${ayat.surah.englishName} : ${ayat.numberInSurah}</span>
+                            </div>
+                            <p class="arabic text-3xl leading-[4.5rem] text-slate-900" dir="rtl">${ayat.text}</p>
+                            <p class="text-sm text-slate-600 text-left mt-6 leading-relaxed border-t pt-4 italic">${dataI.data.ayahs[i].text}</p>
