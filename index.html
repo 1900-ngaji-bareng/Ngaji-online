@@ -26,10 +26,13 @@
         <div class="container mx-auto flex">
             <button onclick="switchTab('juz')" id="tab-juz" class="flex-1 py-4 text-center tab-active">Jadwal Juz</button>
             <button onclick="switchTab('surah')" id="tab-surah" class="flex-1 py-4 text-center text-slate-500">Daftar Surah</button>
+            <button onclick="switchTab('dashboard')" id="tab-surah" class="flex-1 py-4 text-center text-slate-500">Dashboard</button>
         </div>
     </div>
 
-    <section id="dashboard-area" class="container mx-auto px-4 mb-4"></section>
+    <section id="dashboard-area" class="container mx-auto px-4 mb-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" id="dashboard-grid"></div>
+    </section>
     
     <section id="section-juz" class="container mx-auto p-4">
         <div class="bg-white rounded-2xl shadow-sm p-6 border border-slate-200">
@@ -248,5 +251,6 @@
     </script>
 </body>
 </html>
+
 
 
