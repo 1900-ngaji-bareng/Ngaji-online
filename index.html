@@ -50,7 +50,7 @@
 
     <script>
         // GANTI DENGAN URL APPS SCRIPT KAMU
-        const scriptURL = 'https://script.google.com/macros/s/AKfycbzZwfRCik3cPblivXcDj8xQep2tAuoJrE8B5mDM3-5rQIvo4p75pNPNk_akq8njVzgnyQ/exec';
+        const scriptURL = 'https://script.google.com/macros/s/AKfycbz65b7vFgAUE5_T3dH1ECLW3XCgsg-4m-bkWXfGrUzH0bwK8qp5wNjJZOYsY4_MMOWjJA/exec';
         
         let databaseGlobal = [];
 
@@ -129,6 +129,30 @@
             }
         }
 
+      async function init() {
+            const grid = document.getElementById('juz-grid');
+            try {
+                const response = await fetch(scriptURL);
+                if (!response.ok) throw new Error('Respon server gagal');
+                
+                databaseGlobal = await response.json();
+                
+                if (databaseGlobal.length === 0) {
+                    grid.innerHTML = `<div class="col-span-full text-center text-orange-500 font-bold">Data di Google Sheets masih kosong!</div>`;
+                    return;
+                }
+                
+                renderUI();
+            } catch (e) {
+                console.error(e);
+                grid.innerHTML = `
+                    <div class="col-span-full text-center p-4 bg-red-50 text-red-600 rounded-lg">
+                        <p class="font-bold">Gagal memuat data!</p>
+                        <p class="text-[10px] mt-1">Pastikan scriptURL sudah benar dan Apps Script sudah di-deploy sebagai "Anyone".</p>
+                    </div>`;
+            }
+        }
+
         async function showQuranText(id, type, pendaftar = "", kloter = "") {
             const section = document.getElementById('read-section');
             const container = document.getElementById('quran-container');
@@ -152,4 +176,5 @@
                     <div class="bg-emerald-800 text-white p-4 rounded-xl flex justify-between items-center sticky top-[130px] z-40 shadow-lg">
                         <div>
                             <h3 class="font-bold">${type === 'juz' ? 'Juz ' + id : dataA.data.englishName}</h3>
+
 
