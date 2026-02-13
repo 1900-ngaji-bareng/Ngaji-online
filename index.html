@@ -29,6 +29,9 @@
         </div>
     </div>
 
+    <section id="dashboard-area" class="container mx-auto p-4">
+    </section>
+    
     <section id="section-juz" class="container mx-auto p-4">
         <div class="bg-white rounded-2xl shadow-sm p-6 border border-slate-200">
             <h2 class="text-xl font-bold mb-4 text-slate-800 text-center sm:text-left">Pilih Jadwal Juz</h2>
@@ -41,7 +44,7 @@
     <section id="section-surah" class="container mx-auto p-4 hidden">
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" id="surah-grid"></div>
     </section>
-
+    
     <section id="read-section" class="container mx-auto p-4 hidden">
         <div id="quran-container" class="space-y-4"></div>
     </section>
@@ -174,6 +177,89 @@
         }
 
         loadJadwal();
+
+        let databaseGlobal = [];
+
+// 1. Fungsi untuk Memproses Data Kloter & Dashboard
+function renderJuzGrid(data) {
+    databaseGlobal = data; // Simpan untuk dashboard
+    const container = document.getElementById('juz-grid');
+    container.innerHTML = '';
+    
+    // Kelompokkan data berdasarkan kloter
+    const kloters = [...new Set(data.map(item => item.kloter))];
+    const kloterTerakhir = Math.max(...kloters);
+    
+    // Cek apakah kloter terakhir sudah penuh (semua 30 juz ada namanya)
+    const kloterTerakhirData = data.filter(d => d.kloter === kloterTerakhir);
+    const isPenuh = kloterTerakhirData.every(d => d.nama !== "");
+    
+    // TAMPILKAN DASHBOARD
+    updateDashboard(data, kloters);
+
+    // TAMPILKAN GRID KLOTER (Kita tampilkan kloter terakhir atau pilihan user)
+    const targetKloter = isPenuh ? kloterTerakhir + 1 : kloterTerakhir;
+    
+    // Jika kloter baru belum ada di database, kita buat tampilan dummy (user akan otomatis nambah ke sheet saat daftar)
+    const dataTampil = data.filter(d => d.kloter === kloterTerakhir);
+
+    // Render Judul Kloter Aktif
+    container.innerHTML = `<div class="col-span-full font-bold text-center mb-2 text-emerald-800">Menampilkan Kloter ${kloterTerakhir} ${isPenuh ? '(Penuh - Menunggu Kloter Baru)' : ''}</div>`;
+
+    dataTampil.forEach(item => {
+        const isTaken = item.nama !== "";
+        const card = document.createElement('div');
+        card.className = `p-3 rounded-xl border-2 text-center cursor-pointer ${isTaken ? 'bg-slate-100' : 'bg-emerald-50 border-emerald-200'}`;
+        card.innerHTML = `<div>Juz ${item.juz}</div><div class="text-[9px] truncate">${isTaken ? item.nama : 'Pilih'}</div>`;
+        card.onclick = () => handleJuzAction(item.kloter, item.juz, isTaken, item.nama);
+        container.appendChild(card);
+    });
+}
+
+// 2. Dashboard Capaian
+function updateDashboard(data, kloters) {
+    const dashboardContainer = document.getElementById('dashboard-area'); // Buat elemen ini di HTML
+    if(!dashboardContainer) return;
+    
+    dashboardContainer.innerHTML = '<h2 class="font-bold mb-3">Dashboard Capaian Kloter</h2>';
+    
+    kloters.forEach(k => {
+        const dataK = data.filter(d => d.kloter === k);
+        const selesai = dataK.filter(d => d.nama.includes("✅")).length;
+        const terisi = dataK.filter(d => d.nama !== "").length;
+        const persen = Math.round((selesai / 30) * 100);
+
+        dashboardContainer.innerHTML += `
+            <div class="mb-4 bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+                <div class="flex justify-between text-xs mb-1">
+                    <span>Kloter ${k} (${terisi}/30 Terisi)</span>
+                    <span class="font-bold">${persen}% Khatam</span>
+                </div>
+                <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                    <div class="bg-emerald-500 h-full" style="width: ${persen}%"></div>
+                </div>
+            </div>
+        `;
+    });
+}
+
+// 3. Update Fungsi handleJuzAction untuk mendukung kloter
+async function handleJuzAction(kloter, juz, isTaken, namaPendaftar) {
+    if (!isTaken) {
+        const nama = prompt(`Daftar Juz ${juz} Kloter ${kloter}:`);
+        if (nama) {
+            await fetch(scriptURL, { 
+                method: 'POST', 
+                mode: 'no-cors', 
+                body: JSON.stringify({ "kloter": kloter, "juz": juz, "nama": nama }) 
+            });
+            location.reload();
+        }
+    } else {
+        showQuranText(juz, 'juz', namaPendaftar, kloter);
+    }
+}
     </script>
 </body>
 </html>
+
