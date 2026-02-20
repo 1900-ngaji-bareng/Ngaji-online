@@ -12,6 +12,7 @@
         .sticky-header { position: sticky; top: 0; z-index: 50; }
         .tab-active { border-bottom: 4px solid #10b981; color: #065f46; font-weight: bold; }
         html { scroll-behavior: smooth; }
+        .btn-kloter-active { background-color: #047857; color: white; border-color: #047857; }
     </style>
 </head>
 <body class="bg-slate-50 font-['Inter']">
@@ -34,7 +35,11 @@
 
     <section id="section-juz" class="container mx-auto p-4">
         <div class="bg-white rounded-2xl shadow-sm p-6 border border-slate-200">
-            <h2 class="text-xl font-bold mb-4 text-slate-800">Pilih Jadwal Juz</h2>
+            <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                <h2 class="text-xl font-bold text-slate-800">Pilih Jadwal Juz</h2>
+                <div id="kloter-selector" class="flex gap-2 overflow-x-auto pb-2 w-full md:w-auto"></div>
+            </div>
+            
             <div id="juz-grid" class="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-10 gap-2">
                 <div class="col-span-full text-center py-4 text-slate-400 italic">Memuat data kloter...</div>
             </div>
@@ -52,38 +57,38 @@
     <script>
         const scriptURL = 'https://script.google.com/macros/s/AKfycbyPYxEh4LyciWmq_21IlRLLs7LChIfDsl6idq5YFw9nIhVbVNQI9dhPMlm5uBYOlpNJ_g/exec';
         let databaseGlobal = [];
+        let currentSelectedKloter = null;
 
-        // 1. Inisialisasi Data
         async function init() {
             const grid = document.getElementById('juz-grid');
             try {
                 const response = await fetch(scriptURL);
-                if (!response.ok) throw new Error('Respon server gagal');
                 databaseGlobal = await response.json();
                 
                 if (databaseGlobal.length === 0) {
                     grid.innerHTML = `<div class="col-span-full text-center text-orange-500 font-bold">Data di Google Sheets masih kosong!</div>`;
                     return;
                 }
+
+                // Tentukan kloter awal yang ditampilkan (Kloter yang belum penuh)
+                const kloters = [...new Set(databaseGlobal.map(item => item.kloter))];
+                currentSelectedKloter = kloters[0];
+                for (let k of kloters) {
+                    const isFull = databaseGlobal.filter(d => d.kloter === k && d.nama !== "").length === 30;
+                    currentSelectedKloter = k;
+                    if (!isFull) break;
+                }
+
                 renderUI();
             } catch (e) {
-                console.error(e);
-                grid.innerHTML = `<div class="col-span-full text-center p-4 text-red-600">Gagal memuat data! Periksa koneksi atau Script URL.</div>`;
+                grid.innerHTML = `<div class="col-span-full text-center p-4 text-red-600">Gagal memuat data!</div>`;
             }
         }
 
-        // 2. Render Tampilan Utama
         function renderUI() {
             const kloters = [...new Set(databaseGlobal.map(item => item.kloter))];
-            let activeKloter = kloters[0] || 1;
-
-            for (let k of kloters) {
-                const isFull = databaseGlobal.filter(d => d.kloter === k && d.nama !== "").length === 30;
-                activeKloter = k;
-                if (!isFull) break;
-            }
-
-            // Dashboard
+            
+            // 1. Render Dashboard Capaian
             const dash = document.getElementById('dashboard-area');
             dash.innerHTML = '<h2 class="font-bold text-slate-700 mb-3 px-1">Capaian Khataman</h2>';
             kloters.forEach(k => {
@@ -103,15 +108,29 @@
                     </div>`;
             });
 
-            // Grid Juz
+            // 2. Render Kloter Selector (Tombol Pindah Kloter)
+            const selector = document.getElementById('kloter-selector');
+            selector.innerHTML = '';
+            kloters.forEach(k => {
+                const btn = document.createElement('button');
+                btn.className = `px-4 py-2 rounded-full border text-xs font-bold transition-all whitespace-nowrap ${currentSelectedKloter == k ? 'btn-kloter-active' : 'bg-white text-slate-600 border-slate-200'}`;
+                btn.innerText = `Kloter ${k}`;
+                btn.onclick = () => {
+                    currentSelectedKloter = k;
+                    renderUI();
+                };
+                selector.appendChild(btn);
+            });
+
+            // 3. Render Grid Juz berdasarkan kloter yang dipilih
             const grid = document.getElementById('juz-grid');
-            grid.innerHTML = `<div class="col-span-full font-bold text-center mb-2 text-emerald-800 bg-emerald-50 py-2 rounded-lg">Kloter ${activeKloter} sedang berjalan</div>`;
+            grid.innerHTML = '';
             
-            databaseGlobal.filter(d => d.kloter === activeKloter).forEach(item => {
+            databaseGlobal.filter(d => d.kloter == currentSelectedKloter).forEach(item => {
                 const isTaken = item.nama !== "";
                 const isDone = item.nama.includes("✅");
                 const card = document.createElement('div');
-                card.className = `p-3 rounded-xl border-2 text-center transition-all cursor-pointer ${isTaken ? 'bg-slate-100 border-slate-300' : 'bg-emerald-50 border-emerald-200 hover:border-emerald-500'}`;
+                card.className = `p-3 rounded-xl border-2 text-center transition-all cursor-pointer ${isTaken ? 'bg-slate-100 border-slate-300' : 'bg-emerald-50 border-emerald-200 hover:border-emerald-500 shadow-sm'}`;
                 card.innerHTML = `
                     <div class="text-[10px] font-bold text-emerald-700">JUZ</div>
                     <div class="text-lg font-black text-slate-800">${item.juz}</div>
@@ -123,7 +142,6 @@
             });
         }
 
-        // 3. Aksi Daftar atau Baca
         async function handleAction(kloter, juz, isTaken, pendaftar) {
             if (!isTaken) {
                 const nama = prompt(`Daftar Juz ${juz} Kloter ${kloter}. Nama Anda:`);
@@ -137,7 +155,6 @@
             }
         }
 
-        // 4. Fungsi Baca Al-Qur'an (DIPERBAIKI)
         async function showQuranText(id, type, pendaftar = "", kloter = "") {
             const section = document.getElementById('read-section');
             const container = document.getElementById('quran-container');
@@ -161,7 +178,7 @@
                     <div class="bg-emerald-800 text-white p-4 rounded-xl flex justify-between items-center sticky top-[130px] z-40 shadow-lg">
                         <div>
                             <h3 class="font-bold">${type === 'juz' ? 'Juz ' + id : dataA.data.englishName}</h3>
-                            <p class="text-[9px] opacity-80">${pendaftar ? 'Pembaca: ' + pendaftar : ''}</p>
+                            <p class="text-[9px] opacity-80">${pendaftar ? 'Pembaca: ' + pendaftar : ''} ${kloter ? '(Kloter '+kloter+')' : ''}</p>
                         </div>
                         <div class="flex gap-2">
                             ${lastAyat ? `<button onclick="document.getElementById('ayat-${lastAyat}').scrollIntoView({behavior:'smooth'})" class="bg-white text-emerald-800 text-[10px] px-3 py-2 rounded-full font-bold">Lanjut</button>` : ''}
@@ -191,21 +208,18 @@
                     container.appendChild(div);
                 });
             } catch (e) { 
-                container.innerHTML = `<div class="p-10 text-center text-red-500">Gagal memuat ayat Al-Qur'an.</div>`; 
+                container.innerHTML = `<div class="p-10 text-center text-red-500">Gagal memuat ayat.</div>`; 
             }
         }
 
-        // 5. Fungsi Setoran Selesai
         async function finishSetoran(juz, nama, kloter) {
-            if (confirm("Alhamdulillah, apakah benar sudah selesai membaca Juz ini?")) {
+            if (confirm(`Alhamdulillah, selesaikan setoran Juz ${juz} Kloter ${kloter}?`)) {
                 confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
                 await fetch(scriptURL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ kloter, juz, nama, selesai: true }) });
-                alert("Barakallah! Laporan tersimpan.");
                 location.reload();
             }
         }
 
-        // 6. Daftar Surah
         async function loadSurahList() {
             const container = document.getElementById('surah-grid');
             if (container.innerHTML !== '') return;
@@ -229,7 +243,6 @@
             } catch (e) { container.innerHTML = "Gagal memuat surah."; }
         }
 
-        // 7. Navigasi Tab
         function switchTab(type) {
             document.getElementById('section-juz').classList.toggle('hidden', type !== 'juz');
             document.getElementById('section-surah').classList.toggle('hidden', type !== 'surah');
@@ -240,10 +253,7 @@
             if (type === 'surah') loadSurahList();
         }
 
-        // Jalankan Inisialisasi
         init();
     </script>
 </body>
 </html>
-
-
