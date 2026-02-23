@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NgajiYuk - Tadarus 30 Juz</title>
+    <title>1900 NgajiYuk</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Amiri&family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
@@ -19,21 +19,42 @@
 
     <nav class="bg-emerald-700 p-4 text-white shadow-lg sticky-header">
         <div class="container mx-auto flex justify-between items-center">
-            <h1 class="text-xl font-bold italic tracking-tighter">📖 NGAJIYUK</h1>
+            <h1 class="text-xl font-bold italic tracking-tighter">📖 1900 NGAJIYUK - Tadarus 30 Juz</h1>
             <div class="text-[10px] bg-emerald-800 px-3 py-1 rounded-full border border-emerald-600">Online</div>
         </div>
     </nav>
 
     <div class="bg-white shadow-sm mb-4 border-b">
         <div class="container mx-auto flex">
+            <button onclick="switchTab('dash')" id="tab-dash" class="flex-1 py-4 text-center tab-active transition-all">Dashboard</button>
             <button onclick="switchTab('juz')" id="tab-juz" class="flex-1 py-4 text-center tab-active transition-all">Jadwal Juz</button>
             <button onclick="switchTab('surah')" id="tab-surah" class="flex-1 py-4 text-center text-slate-500 transition-all">Daftar Surah</button>
         </div>
     </div>
 
-    <section id="dashboard-area" class="container mx-auto px-4 mb-4"></section>
+   <!-- <section id="dashboard-area" class="container mx-auto px-4 mb-4"></section> -->
+    <section id="section-dash" class="container mx-auto px-4 pb-10">
+        <div id="stat-cards" class="grid grid-cols-2 gap-3 mb-6">
+            </div>
+        
+        <div class="bg-white rounded-2xl shadow-sm p-5 border border-slate-200 mb-6">
+            <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2 text-sm">
+                <span class="text-xl">📊</span> Kontribusi Pekan Ini
+            </h3>
+            <div id="weekly-contribution-container">
+                </div>
+        </div>
 
-    <section id="section-juz" class="container mx-auto p-4">
+        <div class="bg-white rounded-2xl shadow-sm p-5 border border-slate-200">
+            <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2 text-sm">
+                <span class="text-xl">🏆</span> Top Readers (Nama Unik)
+            </h3>
+            <div id="top-readers" class="space-y-2 text-sm">
+                </div>
+        </div>
+    </section>
+
+    <section id="section-juz" class="container mx-auto p-4 hidden">
         <div class="bg-white rounded-2xl shadow-sm p-6 border border-slate-200">
             <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                 <h2 class="text-xl font-bold text-slate-800">Pilih Jadwal Juz</h2>
@@ -85,7 +106,8 @@
                 
                 // Jika semua kloter sudah khatam, pilih kloter terakhir
                 if (!currentSelectedKloter) currentSelectedKloter = kloters[kloters.length - 1];
-
+                renderDashboard();
+                renderJuzGrid();
                 renderUI();
             } catch (e) {
                 grid.innerHTML = `<div class="col-span-full text-center p-4 text-red-600">Gagal memuat data!</div>`;
@@ -157,6 +179,95 @@
             });
         }
 
+
+        function renderDashboard() {
+            // 1. STATISTIK TOTAL (NAMA UNIQUE)
+            const allNames = databaseGlobal
+                .filter(d => d.nama !== "")
+                .map(d => d.nama.replace("✅", "").trim());
+            const uniqueParticipants = [...new Set(allNames)];
+            const totalSelesai = databaseGlobal.filter(d => d.nama.includes("✅")).length;
+
+            document.getElementById('stat-cards').innerHTML = `
+                <div class="bg-emerald-600 text-white p-4 rounded-2xl shadow-md">
+                    <div class="text-[10px] opacity-80 uppercase font-bold tracking-wider">Peserta Bergabung</div>
+                    <div class="text-2xl font-black">${uniqueParticipants.length} <span class="text-[10px] font-normal">Orang</span></div>
+                </div>
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+                    <div class="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Total Juz Khatam</div>
+                    <div class="text-2xl font-black text-emerald-700">${totalSelesai} <span class="text-[10px] font-normal text-slate-400">Juz</span></div>
+                </div>
+            `;
+
+            // 2. KONTRIBUSI PEKANAN (Target 30 Juz per Kloter)
+            const latestKloter = Math.max(...databaseGlobal.map(d => d.kloter));
+            const dataPekanIni = databaseGlobal.filter(d => d.kloter === latestKloter);
+            const selesaiPekanIni = dataPekanIni.filter(d => d.nama.includes("✅")).length;
+            const persenPekanIni = Math.round((selesaiPekanIni / 30) * 100);
+
+            document.getElementById('weekly-contribution-container').innerHTML = `
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold text-slate-600">Pekan Ini (Kloter ${latestKloter})</span>
+                    <span class="text-sm font-black text-emerald-600">${persenPekanIni}%</span>
+                </div>
+                <div class="w-full bg-slate-100 h-4 rounded-full overflow-hidden border border-slate-200">
+                    <div class="bg-emerald-500 h-full transition-all duration-1000" style="width: ${persenPekanIni}%"></div>
+                </div>
+                <p class="text-[9px] text-slate-400 mt-2 font-medium italic">*Setiap kloter memiliki target khataman 30 Juz.</p>
+            `;
+
+            // 3. TOP READER (UNIQUE)
+            const counts = {};
+            databaseGlobal.forEach(d => {
+                if(d.nama.includes("✅")) {
+                    const cleanName = d.nama.replace("✅", "").trim();
+                    counts[cleanName] = (counts[cleanName] || 0) + 1;
+                }
+            });
+            const top = Object.entries(counts).sort((a,b) => b[1] - a[1]).slice(0, 5);
+            const topDiv = document.getElementById('top-readers');
+            topDiv.innerHTML = top.length ? '' : '<p class="text-slate-400 italic">Belum ada setoran.</p>';
+            top.forEach(([name, count], idx) => {
+                topDiv.innerHTML += `
+                    <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-100">
+                        <span><span class="font-bold text-emerald-700 mr-2">#${idx+1}</span> ${name}</span>
+                        <span class="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-[10px] font-bold">${count} Juz</span>
+                    </div>`;
+            });
+        }
+
+        function renderJuzGrid() {
+            const kloters = [...new Set(databaseGlobal.map(item => item.kloter))];
+            const selector = document.getElementById('kloter-selector');
+            selector.innerHTML = '';
+            
+            kloters.forEach(k => {
+                const dataK = databaseGlobal.filter(d => d.kloter === k);
+                const isKhatam = dataK.filter(d => d.nama.includes("✅")).length === 30;
+                
+                if (!isKhatam) {
+                    const btn = document.createElement('button');
+                    btn.className = `px-5 py-2 rounded-full border text-xs font-bold transition-all whitespace-nowrap ${currentSelectedKloter == k ? 'btn-kloter-active' : 'bg-white text-slate-600 border-slate-200'}`;
+                    btn.innerText = `Kloter ${k}`;
+                    btn.onclick = () => { currentSelectedKloter = k; renderJuzGrid(); };
+                    selector.appendChild(btn);
+                }
+            });
+
+            const grid = document.getElementById('juz-grid');
+            grid.innerHTML = '';
+            databaseGlobal.filter(d => d.kloter == currentSelectedKloter).forEach(item => {
+                const isTaken = item.nama !== "";
+                const isDone = item.nama.includes("✅");
+                const card = document.createElement('div');
+                card.className = `p-3 rounded-xl border-2 text-center transition-all cursor-pointer ${isTaken ? 'bg-slate-100 border-slate-300' : 'bg-emerald-50 border-emerald-200 hover:border-emerald-500 shadow-sm'}`;
+                card.innerHTML = `<div class="text-[10px] font-bold text-emerald-700">JUZ</div><div class="text-lg font-black text-slate-800">${item.juz}</div><div class="text-[9px] truncate mt-1 ${isDone ? 'text-emerald-600 font-bold' : 'text-slate-500'}">${isTaken ? item.nama : 'Tersedia'}</div>`;
+                card.onclick = () => handleAction(item.kloter, item.juz, isTaken, item.nama);
+                grid.appendChild(card);
+            });
+        }
+
+        
         async function handleAction(kloter, juz, isTaken, pendaftar) {
             if (!isTaken) {
                 const nama = prompt(`Daftar Juz ${juz} Kloter ${kloter}. Nama Anda:`);
@@ -299,6 +410,7 @@ async function showQuranText(id, type, pendaftar = "", kloter = "") {
     </script>
 </body>
 </html>
+
 
 
 
