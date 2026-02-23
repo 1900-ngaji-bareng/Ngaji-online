@@ -66,18 +66,25 @@
                 databaseGlobal = await response.json();
                 
                 if (databaseGlobal.length === 0) {
-                    grid.innerHTML = `<div class="col-span-full text-center text-orange-500 font-bold">Data di Google Sheets masih kosong!</div>`;
+                    grid.innerHTML = `<div class="col-span-full text-center text-orange-500 font-bold">Data masih kosong!</div>`;
                     return;
                 }
 
-                // Tentukan kloter awal yang ditampilkan (Kloter yang belum penuh)
+                // Logika Penentuan Kloter Aktif
                 const kloters = [...new Set(databaseGlobal.map(item => item.kloter))];
-                currentSelectedKloter = kloters[0];
+                
+                // Cari kloter pertama yang BELUM khatam 100%
                 for (let k of kloters) {
-                    const isFull = databaseGlobal.filter(d => d.kloter === k && d.nama !== "").length === 30;
-                    currentSelectedKloter = k;
-                    if (!isFull) break;
+                    const dataK = databaseGlobal.filter(d => d.kloter === k);
+                    const isKhatam = dataK.filter(d => d.nama.includes("✅")).length === 30;
+                    if (!isKhatam) {
+                        currentSelectedKloter = k;
+                        break;
+                    }
                 }
+                
+                // Jika semua kloter sudah khatam, pilih kloter terakhir
+                if (!currentSelectedKloter) currentSelectedKloter = kloters[kloters.length - 1];
 
                 renderUI();
             } catch (e) {
@@ -87,42 +94,50 @@
 
         function renderUI() {
             const kloters = [...new Set(databaseGlobal.map(item => item.kloter))];
-            
-            // 1. Render Dashboard Capaian
             const dash = document.getElementById('dashboard-area');
-            dash.innerHTML = '<h2 class="font-bold text-slate-700 mb-3 px-1">Capaian Khataman</h2>';
+            const selector = document.getElementById('kloter-selector');
+            
+            dash.innerHTML = '<h2 class="font-bold text-slate-700 mb-3 px-1">Capaian Khataman Aktif</h2>';
+            selector.innerHTML = '';
+
             kloters.forEach(k => {
                 const dataK = databaseGlobal.filter(d => d.kloter === k);
                 const selesai = dataK.filter(d => d.nama.includes("✅")).length;
                 const terisi = dataK.filter(d => d.nama !== "").length;
                 const persen = Math.round((selesai / 30) * 100);
-                dash.innerHTML += `
-                    <div class="mb-3 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                        <div class="flex justify-between text-xs mb-2">
-                            <span class="font-bold">Kloter ${k} (${terisi}/30 Terisi)</span>
-                            <span class="text-emerald-600 font-bold">${persen}% Khatam</span>
-                        </div>
-                        <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                            <div class="bg-emerald-500 h-full transition-all duration-500" style="width: ${persen}%"></div>
-                        </div>
-                    </div>`;
+                
+                // HANYA munculkan kloter di Dashboard & Selector jika belum khatam 100%
+                if (persen < 100) {
+                    // Render Dashboard
+                    dash.innerHTML += `
+                        <div class="mb-3 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                            <div class="flex justify-between text-xs mb-2">
+                                <span class="font-bold">Kloter ${k} (${terisi}/30 Terisi)</span>
+                                <span class="text-emerald-600 font-bold">${persen}% Khatam</span>
+                            </div>
+                            <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                                <div class="bg-emerald-500 h-full transition-all duration-500" style="width: ${persen}%"></div>
+                            </div>
+                        </div>`;
+
+                    // Render Selector
+                    const btn = document.createElement('button');
+                    btn.className = `px-4 py-2 rounded-full border text-xs font-bold transition-all whitespace-nowrap ${currentSelectedKloter == k ? 'btn-kloter-active' : 'bg-white text-slate-600 border-slate-200'}`;
+                    btn.innerText = `Kloter ${k}`;
+                    btn.onclick = () => {
+                        currentSelectedKloter = k;
+                        renderUI();
+                    };
+                    selector.appendChild(btn);
+                }
             });
 
-            // 2. Render Kloter Selector (Tombol Pindah Kloter)
-            const selector = document.getElementById('kloter-selector');
-            selector.innerHTML = '';
-            kloters.forEach(k => {
-                const btn = document.createElement('button');
-                btn.className = `px-4 py-2 rounded-full border text-xs font-bold transition-all whitespace-nowrap ${currentSelectedKloter == k ? 'btn-kloter-active' : 'bg-white text-slate-600 border-slate-200'}`;
-                btn.innerText = `Kloter ${k}`;
-                btn.onclick = () => {
-                    currentSelectedKloter = k;
-                    renderUI();
-                };
-                selector.appendChild(btn);
-            });
+            // Jika semua kloter sudah khatam, tampilkan pesan di dashboard
+            if (dash.innerHTML === '<h2 class="font-bold text-slate-700 mb-3 px-1">Capaian Khataman Aktif</h2>') {
+                dash.innerHTML += `<div class="p-4 bg-emerald-100 text-emerald-700 rounded-xl text-sm font-bold text-center">🎉 Semua kloter saat ini telah khatam!</div>`;
+            }
 
-            // 3. Render Grid Juz berdasarkan kloter yang dipilih
+            // Render Grid Juz
             const grid = document.getElementById('juz-grid');
             grid.innerHTML = '';
             
@@ -148,6 +163,13 @@
                 if (nama && nama.trim() !== "") {
                     alert("Sedang mendaftarkan...");
                     await fetch(scriptURL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ kloter, juz, nama }) });
+                    
+                    // Logika Tambah Kloter Baru: Jika yang didaftar adalah Juz 30 di kloter terakhir
+                    const maxKloter = Math.max(...databaseGlobal.map(d => d.kloter));
+                    if (juz === 30 && kloter === maxKloter) {
+                        alert("Juz 30 Terisi! Menyiapkan Kloter Baru...");
+                    }
+                    
                     location.reload();
                 }
             } else {
@@ -187,7 +209,8 @@
                     </div>`;
 
                 dataA.data.ayahs.forEach((ayat, i) => {
-                    const ayatId = `${ayat.surah.number}-${ayat.numberInSurah}`;
+                    const surahObj = type === 'juz' ? ayat.surah : dataA.data;
+                    const ayatId = `${surahObj.number}-${ayat.numberInSurah}`;
                     const active = lastAyat === ayatId;
                     const div = document.createElement('div');
                     div.id = `ayat-${ayatId}`;
@@ -200,7 +223,7 @@
                     div.innerHTML = `
                         <div class="text-right">
                             <div class="flex justify-between items-center mb-4">
-                                <span class="text-[10px] text-slate-400 font-bold bg-slate-100 px-2 py-1 rounded">${ayat.surah.englishName} : ${ayat.numberInSurah}</span>
+                                <span class="text-[10px] text-slate-400 font-bold bg-slate-100 px-2 py-1 rounded">${surahObj.englishName} : ${ayat.numberInSurah}</span>
                             </div>
                             <p class="arabic text-3xl leading-[4.5rem] text-slate-900" dir="rtl">${ayat.text}</p>
                             <p class="text-sm text-slate-600 text-left mt-6 leading-relaxed border-t pt-4 italic">${dataI.data.ayahs[i].text}</p>
@@ -257,4 +280,3 @@
     </script>
 </body>
 </html>
-
