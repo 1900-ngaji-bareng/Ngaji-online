@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>1900 NgajiYuk</title>
+    <title>NgajiYuk - Dashboard Tadarus 30 Juz</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Amiri&family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
@@ -11,28 +11,27 @@
         .arabic { font-family: 'Amiri', serif; }
         .sticky-header { position: sticky; top: 0; z-index: 50; }
         .tab-active { border-bottom: 4px solid #10b981; color: #065f46; font-weight: bold; }
-        html { scroll-behavior: smooth; }
         .btn-kloter-active { background-color: #047857; color: white; border-color: #047857; }
+        html { scroll-behavior: smooth; }
     </style>
 </head>
 <body class="bg-slate-50 font-['Inter']">
 
     <nav class="bg-emerald-700 p-4 text-white shadow-lg sticky-header">
         <div class="container mx-auto flex justify-between items-center">
-            <h1 class="text-xl font-bold italic tracking-tighter">📖 1900 NGAJIYUK - Tadarus 30 Juz</h1>
-            <div class="text-[10px] bg-emerald-800 px-3 py-1 rounded-full border border-emerald-600">Online</div>
+            <h1 class="text-xl font-bold italic tracking-tighter">📖 NGAJIYUK</h1>
+            <div class="text-[10px] bg-emerald-800 px-3 py-1 rounded-full border border-emerald-600">v2.1 Analytics</div>
         </div>
     </nav>
 
-    <div class="bg-white shadow-sm mb-4 border-b">
-        <div class="container mx-auto flex">
+    <div class="bg-white shadow-sm mb-4 border-b sticky top-[60px] z-40">
+        <div class="container mx-auto flex text-sm">
             <button onclick="switchTab('dash')" id="tab-dash" class="flex-1 py-4 text-center tab-active transition-all">Dashboard</button>
-            <button onclick="switchTab('juz')" id="tab-juz" class="flex-1 py-4 text-center transition-all">Jadwal Juz</button>
+            <button onclick="switchTab('juz')" id="tab-juz" class="flex-1 py-4 text-center text-slate-500 transition-all">Pilih Juz</button>
             <button onclick="switchTab('surah')" id="tab-surah" class="flex-1 py-4 text-center text-slate-500 transition-all">Daftar Surah</button>
         </div>
     </div>
 
-   <!-- <section id="dashboard-area" class="container mx-auto px-4 mb-4"></section> -->
     <section id="section-dash" class="container mx-auto px-4 pb-10">
         <div id="stat-cards" class="grid grid-cols-2 gap-3 mb-6">
             </div>
@@ -57,13 +56,10 @@
     <section id="section-juz" class="container mx-auto p-4 hidden">
         <div class="bg-white rounded-2xl shadow-sm p-6 border border-slate-200">
             <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                <h2 class="text-xl font-bold text-slate-800">Pilih Jadwal Juz</h2>
+                <h2 class="text-xl font-bold text-slate-800">Jadwal Kloter</h2>
                 <div id="kloter-selector" class="flex gap-2 overflow-x-auto pb-2 w-full md:w-auto"></div>
             </div>
-            
-            <div id="juz-grid" class="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-10 gap-2">
-                <div class="col-span-full text-center py-4 text-slate-400 italic">Memuat data kloter...</div>
-            </div>
+            <div id="juz-grid" class="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-10 gap-2"></div>
         </div>
     </section>
 
@@ -81,104 +77,25 @@
         let currentSelectedKloter = null;
 
         async function init() {
-            const grid = document.getElementById('juz-grid');
             try {
                 const response = await fetch(scriptURL);
                 databaseGlobal = await response.json();
                 
-                if (databaseGlobal.length === 0) {
-                    grid.innerHTML = `<div class="col-span-full text-center text-orange-500 font-bold">Data masih kosong!</div>`;
-                    return;
-                }
-
-                // Logika Penentuan Kloter Aktif
                 const kloters = [...new Set(databaseGlobal.map(item => item.kloter))];
                 
-                // Cari kloter pertama yang BELUM khatam 100%
+                // Cari kloter aktif pertama yang belum khatam
                 for (let k of kloters) {
-                    const dataK = databaseGlobal.filter(d => d.kloter === k);
-                    const isKhatam = dataK.filter(d => d.nama.includes("✅")).length === 30;
-                    if (!isKhatam) {
-                        currentSelectedKloter = k;
-                        break;
-                    }
+                    const isKhatam = databaseGlobal.filter(d => d.kloter === k && d.nama.includes("✅")).length === 30;
+                    if (!isKhatam) { currentSelectedKloter = k; break; }
                 }
-                
-                // Jika semua kloter sudah khatam, pilih kloter terakhir
                 if (!currentSelectedKloter) currentSelectedKloter = kloters[kloters.length - 1];
+
                 renderDashboard();
                 renderJuzGrid();
-                renderUI();
             } catch (e) {
-                grid.innerHTML = `<div class="col-span-full text-center p-4 text-red-600">Gagal memuat data!</div>`;
+                console.error("Error Init:", e);
             }
         }
-
-        function renderUI() {
-            const kloters = [...new Set(databaseGlobal.map(item => item.kloter))];
-            const dash = document.getElementById('dashboard-area');
-            const selector = document.getElementById('kloter-selector');
-            
-            dash.innerHTML = '<h2 class="font-bold text-slate-700 mb-3 px-1">Capaian Khataman Aktif</h2>';
-            selector.innerHTML = '';
-
-            kloters.forEach(k => {
-                const dataK = databaseGlobal.filter(d => d.kloter === k);
-                const selesai = dataK.filter(d => d.nama.includes("✅")).length;
-                const terisi = dataK.filter(d => d.nama !== "").length;
-                const persen = Math.round((selesai / 30) * 100);
-                
-                // HANYA munculkan kloter di Dashboard & Selector jika belum khatam 100%
-                if (persen < 100) {
-                    // Render Dashboard
-                    dash.innerHTML += `
-                        <div class="mb-3 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                            <div class="flex justify-between text-xs mb-2">
-                                <span class="font-bold">Kloter ${k} (${terisi}/30 Terisi)</span>
-                                <span class="text-emerald-600 font-bold">${persen}% Khatam</span>
-                            </div>
-                            <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                                <div class="bg-emerald-500 h-full transition-all duration-500" style="width: ${persen}%"></div>
-                            </div>
-                        </div>`;
-
-                    // Render Selector
-                    const btn = document.createElement('button');
-                    btn.className = `px-4 py-2 rounded-full border text-xs font-bold transition-all whitespace-nowrap ${currentSelectedKloter == k ? 'btn-kloter-active' : 'bg-white text-slate-600 border-slate-200'}`;
-                    btn.innerText = `Kloter ${k}`;
-                    btn.onclick = () => {
-                        currentSelectedKloter = k;
-                        renderUI();
-                    };
-                    selector.appendChild(btn);
-                }
-            });
-
-            // Jika semua kloter sudah khatam, tampilkan pesan di dashboard
-            if (dash.innerHTML === '<h2 class="font-bold text-slate-700 mb-3 px-1">Capaian Khataman Aktif</h2>') {
-                dash.innerHTML += `<div class="p-4 bg-emerald-100 text-emerald-700 rounded-xl text-sm font-bold text-center">🎉 Semua kloter saat ini telah khatam!</div>`;
-            }
-
-            // Render Grid Juz
-            const grid = document.getElementById('juz-grid');
-            grid.innerHTML = '';
-            
-            databaseGlobal.filter(d => d.kloter == currentSelectedKloter).forEach(item => {
-                const isTaken = item.nama !== "";
-                const isDone = item.nama.includes("✅");
-                const card = document.createElement('div');
-                card.className = `p-3 rounded-xl border-2 text-center transition-all cursor-pointer ${isTaken ? 'bg-slate-100 border-slate-300' : 'bg-emerald-50 border-emerald-200 hover:border-emerald-500 shadow-sm'}`;
-                card.innerHTML = `
-                    <div class="text-[10px] font-bold text-emerald-700">JUZ</div>
-                    <div class="text-lg font-black text-slate-800">${item.juz}</div>
-                    <div class="text-[9px] truncate mt-1 ${isDone ? 'text-emerald-600 font-bold' : 'text-slate-500'}">
-                        ${isTaken ? item.nama : 'Tersedia'}
-                    </div>`;
-                card.onclick = () => handleAction(item.kloter, item.juz, isTaken, item.nama);
-                grid.appendChild(card);
-            });
-        }
-
 
         function renderDashboard() {
             // 1. STATISTIK TOTAL (NAMA UNIQUE)
@@ -267,106 +184,63 @@
             });
         }
 
-        
         async function handleAction(kloter, juz, isTaken, pendaftar) {
             if (!isTaken) {
-                const nama = prompt(`Daftar Juz ${juz} Kloter ${kloter}. Nama Anda:`);
+                const nama = prompt(`Daftar Juz ${juz} Kloter ${kloter}. Masukkan Nama Anda:`);
                 if (nama && nama.trim() !== "") {
-                    alert("Sedang mendaftarkan...");
                     await fetch(scriptURL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ kloter, juz, nama }) });
-                    
-                    // Logika Tambah Kloter Baru: Jika yang didaftar adalah Juz 30 di kloter terakhir
-                    const maxKloter = Math.max(...databaseGlobal.map(d => d.kloter));
-                    if (juz === 30 && kloter === maxKloter) {
-                        alert("Juz 30 Terisi! Menyiapkan Kloter Baru...");
-                    }
-                    
                     location.reload();
                 }
-            } else {
-                showQuranText(juz, 'juz', pendaftar, kloter);
-            }
-        }
-async function showQuranText(id, type, pendaftar = "", kloter = "") {
-    const section = document.getElementById('read-section');
-    const container = document.getElementById('quran-container');
-    section.classList.remove('hidden');
-    container.innerHTML = `<div class="text-center py-20 text-emerald-600 font-bold animate-pulse">Membuka Mushaf...</div>`;
-    container.scrollIntoView({ behavior: 'smooth' });
-
-    const endpoint = type === 'juz' ? `juz/${id}` : `surah/${id}`;
-    const lastKey = `prog-${type}-${id}`;
-    const lastAyat = localStorage.getItem(lastKey);
-
-    try {
-        const [resA, resI] = await Promise.all([
-            fetch(`https://api.alquran.cloud/v1/${endpoint}/quran-uthmani`),
-            fetch(`https://api.alquran.cloud/v1/${endpoint}/id.indonesian`)
-        ]);
-        const dataA = await resA.json();
-        const dataI = await resI.json();
-
-        // Perbaikan Penentuan Nama & Subjudul
-        const title = type === 'juz' ? `Juz ${id}` : dataA.data.englishName;
-        let subTitle = "";
-        if (type === 'juz') {
-            subTitle = pendaftar ? `Pembaca: ${pendaftar} (Kloter ${kloter})` : `Kloter ${kloter}`;
-        } else {
-            subTitle = `Surah ke-${dataA.data.number} • ${dataA.data.revelationType}`;
+            } else { showQuranText(juz, 'juz', pendaftar, kloter); }
         }
 
-        container.innerHTML = `
-            <div class="bg-emerald-800 text-white p-4 rounded-xl flex justify-between items-center sticky top-[130px] z-40 shadow-lg">
-                <div>
-                    <h3 class="font-bold">${title}</h3>
-                    <p class="text-[9px] opacity-80">${subTitle}</p>
-                </div>
-                <div class="flex gap-2">
-                    ${lastAyat ? `<button onclick="document.getElementById('ayat-${lastAyat}').scrollIntoView({behavior:'smooth'})" class="bg-white text-emerald-800 text-[10px] px-3 py-2 rounded-full font-bold">Lanjut</button>` : ''}
-                    ${type === 'juz' && pendaftar && !pendaftar.includes("✅") ? `<button onclick="finishSetoran(${id}, '${pendaftar}', ${kloter})" class="bg-yellow-400 text-emerald-900 text-[10px] px-3 py-2 rounded-full font-bold shadow-md">Setoran ✅</button>` : ''}
-                </div>
-            </div>`;
+        async function showQuranText(id, type, pendaftar = "", kloter = "") {
+            const section = document.getElementById('read-section');
+            const container = document.getElementById('quran-container');
+            section.classList.remove('hidden');
+            container.innerHTML = `<div class="text-center py-20 text-emerald-600 font-bold animate-pulse">Membuka Mushaf...</div>`;
+            container.scrollIntoView({ behavior: 'smooth' });
 
-        const ayahs = dataA.data.ayahs;
-        
-        ayahs.forEach((ayat, i) => {
-            // LOGIKA KRUSIAL: Membedakan cara ambil nomor surah & nama surah
-            const surahName = type === 'juz' ? ayat.surah.englishName : dataA.data.englishName;
-            const surahNum = type === 'juz' ? ayat.surah.number : dataA.data.number;
-            const ayatId = `${surahNum}-${ayat.numberInSurah}`;
-            
-            const active = lastAyat === ayatId;
-            
-            const div = document.createElement('div');
-            div.id = `ayat-${ayatId}`;
-            div.className = `bg-white p-8 rounded-xl border-b-4 mb-4 cursor-pointer transition-all hover:bg-emerald-50 ${active ? 'border-emerald-500 ring-2 ring-emerald-100' : 'border-slate-100'}`;
-            div.onclick = () => { 
-                localStorage.setItem(lastKey, ayatId); 
-                alert("Posisi membaca disimpan!"); 
-                showQuranText(id, type, pendaftar, kloter); 
-            };
-            div.innerHTML = `
-                <div class="text-right">
-                    <div class="flex justify-between items-center mb-4">
-                        <span class="text-[10px] text-slate-400 font-bold bg-slate-100 px-2 py-1 rounded">${surahName} : ${ayat.numberInSurah}</span>
-                    </div>
-                    <p class="arabic text-3xl leading-[4.5rem] text-slate-900" dir="rtl">${ayat.text}</p>
-                    <p class="text-sm text-slate-600 text-left mt-6 leading-relaxed border-t pt-4 italic">${dataI.data.ayahs[i].text}</p>
-                </div>`;
-            container.appendChild(div);
-        });
-    } catch (e) { 
-        console.error(e);
-        container.innerHTML = `<div class="p-10 text-center text-red-500">Gagal memuat ayat. Pastikan koneksi internet stabil.</div>`; 
-    }
-}
+            const endpoint = type === 'juz' ? `juz/${id}` : `surah/${id}`;
+            const lastKey = `prog-${type}-${id}`;
+            const lastAyat = localStorage.getItem(lastKey);
 
+            try {
+                const [resA, resI] = await Promise.all([
+                    fetch(`https://api.alquran.cloud/v1/${endpoint}/quran-uthmani`),
+                    fetch(`https://api.alquran.cloud/v1/${endpoint}/id.indonesian`)
+                ]);
+                const dataA = await resA.json();
+                const dataI = await resI.json();
 
+                container.innerHTML = `
+                    <div class="bg-emerald-800 text-white p-4 rounded-xl flex justify-between items-center sticky top-[130px] z-40 shadow-lg">
+                        <div>
+                            <h3 class="font-bold">${type === 'juz' ? 'Juz ' + id : dataA.data.englishName}</h3>
+                            <p class="text-[9px] opacity-80">${pendaftar ? 'Pembaca: ' + pendaftar : ''} ${kloter ? '(Kloter '+kloter+')' : ''}</p>
+                        </div>
+                        <div class="flex gap-2">
+                            ${lastAyat ? `<button onclick="document.getElementById('ayat-${lastAyat}').scrollIntoView({behavior:'smooth'})" class="bg-white text-emerald-800 text-[10px] px-3 py-2 rounded-full font-bold">Lanjut</button>` : ''}
+                            ${type === 'juz' && pendaftar && !pendaftar.includes("✅") ? `<button onclick="finishSetoran(${id}, '${pendaftar}', ${kloter})" class="bg-yellow-400 text-emerald-900 text-[10px] px-3 py-2 rounded-full font-bold shadow-md">Setoran ✅</button>` : ''}
+                        </div>
+                    </div>`;
 
-        
+                dataA.data.ayahs.forEach((ayat, i) => {
+                    const sNum = type === 'juz' ? ayat.surah.number : dataA.data.number;
+                    const sName = type === 'juz' ? ayat.surah.englishName : dataA.data.englishName;
+                    const ayatId = `${sNum}-${ayat.numberInSurah}`;
+                    const div = document.createElement('div');
+                    div.id = `ayat-${ayatId}`;
+                    div.className = `bg-white p-8 rounded-xl border-b-4 mb-4 ${lastAyat === ayatId ? 'border-emerald-500 ring-2 ring-emerald-100' : 'border-slate-100'}`;
+                    div.onclick = () => { localStorage.setItem(lastKey, ayatId); alert("Tanda disimpan!"); showQuranText(id, type, pendaftar, kloter); };
+                    div.innerHTML = `<div class="text-right"><span class="text-[10px] text-slate-400 font-bold bg-slate-100 px-2 py-1 rounded">${sName} : ${ayat.numberInSurah}</span><p class="arabic text-3xl leading-[4.5rem] mt-4" dir="rtl">${ayat.text}</p><p class="text-sm text-slate-600 text-left mt-6 border-t pt-4 italic">${dataI.data.ayahs[i].text}</p></div>`;
+                    container.appendChild(div);
+                });
+            } catch (e) { container.innerHTML = `<div class="p-10 text-center text-red-500">Gagal memuat.</div>`; }
+        }
 
         async function finishSetoran(juz, nama, kloter) {
-            if (confirm(`Alhamdulillah, selesaikan setoran Juz ${juz} Kloter ${kloter}?`)) {
+            if (confirm(`Selesaikan setoran Juz ${juz}?`)) {
                 confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
                 await fetch(scriptURL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ kloter, juz, nama, selesai: true }) });
                 location.reload();
@@ -376,7 +250,6 @@ async function showQuranText(id, type, pendaftar = "", kloter = "") {
         async function loadSurahList() {
             const container = document.getElementById('surah-grid');
             if (container.innerHTML !== '') return;
-            container.innerHTML = '<div class="col-span-full text-center py-20">Memuat Daftar Surah...</div>';
             try {
                 const res = await fetch('https://api.alquran.cloud/v1/surah');
                 const data = await res.json();
@@ -385,34 +258,27 @@ async function showQuranText(id, type, pendaftar = "", kloter = "") {
                     const card = document.createElement('div');
                     card.className = "bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center cursor-pointer hover:bg-emerald-50";
                     card.onclick = () => showQuranText(s.number, 'surah');
-                    card.innerHTML = `
-                        <div class="flex items-center gap-3">
-                            <span class="text-xs bg-emerald-100 text-emerald-700 w-8 h-8 flex items-center justify-center rounded-full font-bold">${s.number}</span>
-                            <div><p class="text-sm font-bold text-slate-800">${s.englishName}</p></div>
-                        </div>
-                        <div class="arabic text-xl text-emerald-700">${s.name}</div>`;
+                    card.innerHTML = `<div class="flex items-center gap-3"><span class="text-xs bg-emerald-100 text-emerald-700 w-8 h-8 flex items-center justify-center rounded-full font-bold">${s.number}</span><p class="text-sm font-bold text-slate-800">${s.englishName}</p></div><div class="arabic text-xl text-emerald-700">${s.name}</div>`;
                     container.appendChild(card);
                 });
             } catch (e) { container.innerHTML = "Gagal memuat surah."; }
         }
 
         function switchTab(type) {
+            document.getElementById('section-dash').classList.toggle('hidden', type !== 'dash');
             document.getElementById('section-juz').classList.toggle('hidden', type !== 'juz');
             document.getElementById('section-surah').classList.toggle('hidden', type !== 'surah');
-            document.getElementById('dashboard-area').classList.toggle('hidden', type !== 'juz');
             document.getElementById('read-section').classList.add('hidden');
+            
+            document.getElementById('tab-dash').className = `flex-1 py-4 text-center ${type === 'dash' ? 'tab-active' : 'text-slate-500'}`;
             document.getElementById('tab-juz').className = `flex-1 py-4 text-center ${type === 'juz' ? 'tab-active' : 'text-slate-500'}`;
             document.getElementById('tab-surah').className = `flex-1 py-4 text-center ${type === 'surah' ? 'tab-active' : 'text-slate-500'}`;
+            
             if (type === 'surah') loadSurahList();
+            if (type === 'dash') renderDashboard();
         }
 
         init();
     </script>
 </body>
 </html>
-
-
-
-
-
-
