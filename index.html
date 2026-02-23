@@ -176,64 +176,83 @@
                 showQuranText(juz, 'juz', pendaftar, kloter);
             }
         }
+async function showQuranText(id, type, pendaftar = "", kloter = "") {
+    const section = document.getElementById('read-section');
+    const container = document.getElementById('quran-container');
+    section.classList.remove('hidden');
+    container.innerHTML = `<div class="text-center py-20 text-emerald-600 font-bold animate-pulse">Membuka Mushaf...</div>`;
+    container.scrollIntoView({ behavior: 'smooth' });
 
-        async function showQuranText(id, type, pendaftar = "", kloter = "") {
-            const section = document.getElementById('read-section');
-            const container = document.getElementById('quran-container');
-            section.classList.remove('hidden');
-            container.innerHTML = `<div class="text-center py-20 text-emerald-600 font-bold animate-pulse">Membuka Mushaf...</div>`;
-            container.scrollIntoView({ behavior: 'smooth' });
+    const endpoint = type === 'juz' ? `juz/${id}` : `surah/${id}`;
+    const lastKey = `prog-${type}-${id}`;
+    const lastAyat = localStorage.getItem(lastKey);
 
-            const endpoint = type === 'juz' ? `juz/${id}` : `surah/${id}`;
-            const lastKey = `prog-${type}-${id}`;
-            const lastAyat = localStorage.getItem(lastKey);
+    try {
+        const [resA, resI] = await Promise.all([
+            fetch(`https://api.alquran.cloud/v1/${endpoint}/quran-uthmani`),
+            fetch(`https://api.alquran.cloud/v1/${endpoint}/id.indonesian`)
+        ]);
+        const dataA = await resA.json();
+        const dataI = await resI.json();
 
-            try {
-                const [resA, resI] = await Promise.all([
-                    fetch(`https://api.alquran.cloud/v1/${endpoint}/quran-uthmani`),
-                    fetch(`https://api.alquran.cloud/v1/${endpoint}/id.indonesian`)
-                ]);
-                const dataA = await resA.json();
-                const dataI = await resI.json();
-
-                container.innerHTML = `
-                    <div class="bg-emerald-800 text-white p-4 rounded-xl flex justify-between items-center sticky top-[130px] z-40 shadow-lg">
-                        <div>
-                            <h3 class="font-bold">${type === 'juz' ? 'Juz ' + id : dataA.data.englishName}</h3>
-                            <p class="text-[9px] opacity-80">${pendaftar ? 'Pembaca: ' + pendaftar : ''} ${kloter ? '(Kloter '+kloter+')' : ''}</p>
-                        </div>
-                        <div class="flex gap-2">
-                            ${lastAyat ? `<button onclick="document.getElementById('ayat-${lastAyat}').scrollIntoView({behavior:'smooth'})" class="bg-white text-emerald-800 text-[10px] px-3 py-2 rounded-full font-bold">Lanjut</button>` : ''}
-                            ${type === 'juz' && !pendaftar.includes("✅") ? `<button onclick="finishSetoran(${id}, '${pendaftar}', ${kloter})" class="bg-yellow-400 text-emerald-900 text-[10px] px-3 py-2 rounded-full font-bold shadow-md">Setoran ✅</button>` : ''}
-                        </div>
-                    </div>`;
-
-                dataA.data.ayahs.forEach((ayat, i) => {
-                    const surahObj = type === 'juz' ? ayat.surah : dataA.data;
-                    const ayatId = `${surahObj.number}-${ayat.numberInSurah}`;
-                    const active = lastAyat === ayatId;
-                    const div = document.createElement('div');
-                    div.id = `ayat-${ayatId}`;
-                    div.className = `bg-white p-8 rounded-xl border-b-4 mb-4 cursor-pointer transition-all hover:bg-emerald-50 ${active ? 'border-emerald-500 ring-2 ring-emerald-100' : 'border-slate-100'}`;
-                    div.onclick = () => { 
-                        localStorage.setItem(lastKey, ayatId); 
-                        alert("Penanda disimpan!"); 
-                        showQuranText(id, type, pendaftar, kloter); 
-                    };
-                    div.innerHTML = `
-                        <div class="text-right">
-                            <div class="flex justify-between items-center mb-4">
-                                <span class="text-[10px] text-slate-400 font-bold bg-slate-100 px-2 py-1 rounded">${surahObj.englishName} : ${ayat.numberInSurah}</span>
-                            </div>
-                            <p class="arabic text-3xl leading-[4.5rem] text-slate-900" dir="rtl">${ayat.text}</p>
-                            <p class="text-sm text-slate-600 text-left mt-6 leading-relaxed border-t pt-4 italic">${dataI.data.ayahs[i].text}</p>
-                        </div>`;
-                    container.appendChild(div);
-                });
-            } catch (e) { 
-                container.innerHTML = `<div class="p-10 text-center text-red-500">Gagal memuat ayat.</div>`; 
-            }
+        // Perbaikan Penentuan Nama & Subjudul
+        const title = type === 'juz' ? `Juz ${id}` : dataA.data.englishName;
+        let subTitle = "";
+        if (type === 'juz') {
+            subTitle = pendaftar ? `Pembaca: ${pendaftar} (Kloter ${kloter})` : `Kloter ${kloter}`;
+        } else {
+            subTitle = `Surah ke-${dataA.data.number} • ${dataA.data.revelationType}`;
         }
+
+        container.innerHTML = `
+            <div class="bg-emerald-800 text-white p-4 rounded-xl flex justify-between items-center sticky top-[130px] z-40 shadow-lg">
+                <div>
+                    <h3 class="font-bold">${title}</h3>
+                    <p class="text-[9px] opacity-80">${subTitle}</p>
+                </div>
+                <div class="flex gap-2">
+                    ${lastAyat ? `<button onclick="document.getElementById('ayat-${lastAyat}').scrollIntoView({behavior:'smooth'})" class="bg-white text-emerald-800 text-[10px] px-3 py-2 rounded-full font-bold">Lanjut</button>` : ''}
+                    ${type === 'juz' && pendaftar && !pendaftar.includes("✅") ? `<button onclick="finishSetoran(${id}, '${pendaftar}', ${kloter})" class="bg-yellow-400 text-emerald-900 text-[10px] px-3 py-2 rounded-full font-bold shadow-md">Setoran ✅</button>` : ''}
+                </div>
+            </div>`;
+
+        const ayahs = dataA.data.ayahs;
+        
+        ayahs.forEach((ayat, i) => {
+            // LOGIKA KRUSIAL: Membedakan cara ambil nomor surah & nama surah
+            const surahName = type === 'juz' ? ayat.surah.englishName : dataA.data.englishName;
+            const surahNum = type === 'juz' ? ayat.surah.number : dataA.data.number;
+            const ayatId = `${surahNum}-${ayat.numberInSurah}`;
+            
+            const active = lastAyat === ayatId;
+            
+            const div = document.createElement('div');
+            div.id = `ayat-${ayatId}`;
+            div.className = `bg-white p-8 rounded-xl border-b-4 mb-4 cursor-pointer transition-all hover:bg-emerald-50 ${active ? 'border-emerald-500 ring-2 ring-emerald-100' : 'border-slate-100'}`;
+            div.onclick = () => { 
+                localStorage.setItem(lastKey, ayatId); 
+                alert("Posisi membaca disimpan!"); 
+                showQuranText(id, type, pendaftar, kloter); 
+            };
+            div.innerHTML = `
+                <div class="text-right">
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="text-[10px] text-slate-400 font-bold bg-slate-100 px-2 py-1 rounded">${surahName} : ${ayat.numberInSurah}</span>
+                    </div>
+                    <p class="arabic text-3xl leading-[4.5rem] text-slate-900" dir="rtl">${ayat.text}</p>
+                    <p class="text-sm text-slate-600 text-left mt-6 leading-relaxed border-t pt-4 italic">${dataI.data.ayahs[i].text}</p>
+                </div>`;
+            container.appendChild(div);
+        });
+    } catch (e) { 
+        console.error(e);
+        container.innerHTML = `<div class="p-10 text-center text-red-500">Gagal memuat ayat. Pastikan koneksi internet stabil.</div>`; 
+    }
+}
+
+
+
+        
 
         async function finishSetoran(juz, nama, kloter) {
             if (confirm(`Alhamdulillah, selesaikan setoran Juz ${juz} Kloter ${kloter}?`)) {
@@ -280,5 +299,6 @@
     </script>
 </body>
 </html>
+
 
 
